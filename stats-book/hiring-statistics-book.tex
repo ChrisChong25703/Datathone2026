@@ -1,0 +1,1894 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[most]{tcolorbox}
+\usepackage{kotex}
+\setmainhangulfont{Nanum Myeongjo}
+\setsanshangulfont{Apple SD Gothic Neo}
+\usepackage[hidelinks]{hyperref}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Datathon Statistics}
+\rhead{채용 데이터로 배우는 통계}
+\cfoot{\thepage}
+\setlength{\headheight}{14pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\setlength{\emergencystretch}{2em}
+\setlist[itemize]{leftmargin=1.3em,itemsep=0.2em,topsep=0.2em}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=0.2em,topsep=0.2em}
+\renewcommand{\arraystretch}{1.15}
+\AddToHook{cmd/section/before}{\clearpage}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\Bern}{\operatorname{Bernoulli}}
+\newcommand{\Bin}{\operatorname{Bin}}
+\newcommand{\BetaD}{\operatorname{Beta}}
+\newcommand{\term}[1]{\textbf{#1}}
+\newcommand{\warn}{\textsf{\small 주의}\;}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\aside}[1]{{\footnotesize\color{black!65}#1}}
+\newtcolorbox{codebox}{breakable,colback=black!3,colframe=black!45,boxrule=0.5pt,arc=1.5pt,
+  left=4pt,right=4pt,top=2pt,bottom=2pt,fontupper=\small\ttfamily}
+\newcommand{\Ans}{\par\textbf{Answer.}\ }
+\newcommand{\Just}{\par\textbf{Justification.}\ }
+
+\newtcolorbox{defbox}[1]{breakable,colback=blue!3,colframe=blue!45!black,
+  fonttitle=\bfseries\sffamily,title={#1},boxrule=0.6pt,arc=1.5pt}
+\newtcolorbox{databox}[1]{breakable,colback=green!3,colframe=green!35!black,
+  fonttitle=\bfseries\sffamily,title={데이터에 적용: #1},boxrule=0.6pt,arc=1.5pt}
+\newtcolorbox{whybox}[1]{breakable,colback=orange!4,colframe=orange!60!black,
+  fonttitle=\bfseries\sffamily,title={#1},boxrule=0.6pt,arc=1.5pt}
+\newtcolorbox{probbox}{breakable,colback=gray!4,colframe=gray!55!black,
+  fonttitle=\bfseries\sffamily,title={연습 문제},boxrule=0.6pt,arc=1.5pt}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\textbf{채용 데이터로 다시 배우는 통계}}\\[0.4em]
+{\large Datathon ``Exploring Bias in Hiring'' 대비 개념서 + 문제집}\\[0.3em]
+{\small 용어는 영어 원문 그대로, 설명은 한국어로. 모든 수치는 \code{hiring\_practice.csv} (600행)에서 직접 계산한 값입니다.}
+\end{center}
+
+\clearpage
+\input{roadmap}
+\clearpage
+\renewcommand{\contentsname}{목차 (Contents)}
+\tableofcontents
+\newpage
+
+%=================================================
+\section*{0\quad 데이터 미리보기와 pandas 작동 원리}
+\addcontentsline{toc}{section}{0\quad 데이터 미리보기와 pandas 작동 원리}
+\markboth{}{}
+
+이 책의 모든 숫자는 아래 표 한 장에서 나옵니다. 본문을 읽기 전에 데이터가 어떻게 생겼는지, 그리고 pandas 코드가 그 표를 \emph{어떻게 바꾸는지}를 작은 예(처음 10행)로 먼저 봅니다. 전체 600행은 부록에 있습니다.
+
+\subsection*{0.1\quad 데이터 사전 (data dictionary)}
+\addcontentsline{toc}{subsection}{0.1\quad 데이터 사전}
+\begin{center}
+\begin{tabular}{@{}l l p{6.6cm} l@{}}
+\toprule
+열 이름 & 뜻 & 값 & pandas dtype \\
+\midrule
+\code{applicant\_id} & 지원자 번호 & 1–600 & \code{int64} \\
+\code{gender} & 성별 & \code{"F"} (313명), \code{"M"} (287명) & \code{object} (문자열) \\
+\code{department} & 지원 부서 & \code{"Engineering"} (326), \code{"Marketing"} (274) & \code{object} \\
+\code{years\_experience} & 경력 (년) & 0–11 정수 & \code{int64} \\
+\code{degree} & 최종 학위 & \code{"Bachelor"} (311), \code{"Master"} (231), \code{"PhD"} (58) & \code{object} \\
+\code{test\_score} & 시험 점수 & 29–100, \textbf{결측 18개} & \code{float64} \\
+\code{hired} & 합격 여부 & 1 = 합격 (193명), 0 = 불합격 & \code{int64} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\aside{※ \code{test\_score}만 \code{float64}인 이유: 결측값 \code{NaN}은 실수형에만 들어갈 수 있어서, 정수 점수인데도 pandas가 실수로 읽습니다.}
+
+\subsection*{0.2\quad 불러오기와 첫 10행}
+\addcontentsline{toc}{subsection}{0.2\quad 불러오기와 첫 10행}
+\begin{codebox}
+import pandas as pd\\
+df = pd.read\_csv("hiring\_practice.csv") \hfill \# CSV 파일 $\to$ DataFrame (표)\\
+df.head(10) \hfill \# 위에서 10행
+\end{codebox}
+\begin{center}\small
+\begin{tabular}{@{}r r c l r l r c@{}}
+\toprule
+index & applicant\_id & gender & department & years\_experience & degree & test\_score & hired \\
+\midrule
+0 & 1 & M & Engineering & 5 & Bachelor & 69.0 & 1 \\
+1 & 2 & F & Marketing & 5 & Master & 76.0 & 0 \\
+2 & 3 & F & Marketing & 4 & Bachelor & 73.0 & 0 \\
+3 & 4 & M & Engineering & 6 & Master & 73.0 & 1 \\
+4 & 5 & F & Marketing & 5 & Bachelor & 49.0 & 1 \\
+5 & 6 & F & Marketing & 4 & PhD & 62.0 & 0 \\
+6 & 7 & F & Marketing & 6 & PhD & 42.0 & 0 \\
+7 & 8 & F & Marketing & 3 & Bachelor & 73.0 & 0 \\
+8 & 9 & M & Engineering & 2 & Bachelor & 65.0 & 0 \\
+9 & 10 & F & Marketing & 3 & Master & 69.0 & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+\item \textbf{DataFrame} = 표. 각 열은 \textbf{Series} (이름 붙은 1차원 배열)이고, 모든 열이 같은 \textbf{index} (맨 왼쪽 0, 1, 2, \dots)를 공유합니다.
+\item \code{df["hired"]}는 Series 하나, \code{df[["gender","hired"]]}는 열 두 개짜리 DataFrame입니다 (대괄호 두 겹).
+\item index는 0부터, \code{applicant\_id}는 1부터 시작합니다. 둘은 다른 것입니다.
+\end{itemize}
+
+\subsection*{0.3\quad 구조 확인: \code{info()}}
+\addcontentsline{toc}{subsection}{0.3\quad 구조 확인: info()}
+\begin{codebox}
+df.info()\\[2pt]
+RangeIndex: 600 entries, 0 to 599\\
+\ \#\ \ Column\ \ \ \ \ \ \ \ \ \ \ \ Non-Null Count\ \ Dtype\\
+\ 0\ \ applicant\_id\ \ \ \ \ \ 600 non-null\ \ \ \ \ int64\\
+\ 1\ \ gender\ \ \ \ \ \ \ \ \ \ \ \ 600 non-null\ \ \ \ \ object\\
+\ 2\ \ department\ \ \ \ \ \ \ \ 600 non-null\ \ \ \ \ object\\
+\ 3\ \ years\_experience\ \ 600 non-null\ \ \ \ \ int64\\
+\ 4\ \ degree\ \ \ \ \ \ \ \ \ \ \ \ 600 non-null\ \ \ \ \ object\\
+\ 5\ \ test\_score\ \ \ \ \ \ \ \ 582 non-null\ \ \ \ \ float64 \hfill $\leftarrow$ 18개 결측\\
+\ 6\ \ hired\ \ \ \ \ \ \ \ \ \ \ \ \ 600 non-null\ \ \ \ \ int64
+\end{codebox}
+\aside{※ 처음 보는 데이터에서 가장 먼저 보는 것: 행 수, 열 이름, dtype, \textbf{Non-Null Count가 행 수보다 작은 열} (= 결측 있음).}
+
+\subsection*{0.4\quad 행 고르기: boolean mask}
+\addcontentsline{toc}{subsection}{0.4\quad 행 고르기: boolean mask}
+\begin{codebox}
+t = df.head(10)\\
+mask = t["department"] == "Engineering" \hfill \# 행마다 True/False\\
+t[mask] \hfill \# True인 행만
+\end{codebox}
+\begin{center}\small
+\begin{tabular}{@{}c c c c c c c c c c c@{}}
+\toprule
+index & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 \\
+\midrule
+mask & \textbf{True} & False & False & \textbf{True} & False & False & False & False & \textbf{True} & False \\
+\bottomrule
+\end{tabular}
+\end{center}
+결과: index 0, 3, 8 (지원자 1, 4, 9) 세 행. 조건을 합칠 때는 \code{\&} (and), \code{|} (or)를 쓰고 각 조건을 괄호로 감쌉니다: \code{t[(t.gender=="F") \& (t.hired==1)]} $\to$ 지원자 5 한 명.
+
+\subsection*{0.5\quad \code{groupby}: split $\to$ apply $\to$ combine}
+\addcontentsline{toc}{subsection}{0.5\quad groupby: split, apply, combine}
+이 책에서 가장 많이 쓰는 한 줄입니다.
+\begin{codebox}
+t.groupby("gender")["hired"].agg(["sum", "count", "mean"])
+\end{codebox}
+\textbf{① Split}: \code{gender} 값에 따라 행을 나눕니다.
+\begin{center}\small
+\begin{tabular}{@{}l l l@{}}
+\toprule
+그룹 & 해당 지원자 & \code{hired} 값 \\
+\midrule
+F & 2, 3, 5, 6, 7, 8, 10 & 0, 0, 1, 0, 0, 0, 0 \\
+M & 1, 4, 9 & 1, 1, 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{② Apply}: 그룹마다 \code{sum}, \code{count}, \code{mean}을 계산합니다. \quad
+\textbf{③ Combine}: 결과를 그룹 이름을 index로 하는 표로 합칩니다.
+\begin{center}\small
+\begin{tabular}{@{}l c c c@{}}
+\toprule
+gender & sum & count & mean \\
+\midrule
+F & 1 & 7 & 0.143 \\
+M & 2 & 3 & 0.667 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\aside{※ \code{hired}가 0/1이므로 sum = 합격자 수, count = 지원자 수, mean = 합격률. 전체 600행으로 하면 F: 68/313 = 0.217, M: 125/287 = 0.436 (\S3.2).}\\
+\aside{※ 그룹 기준을 여러 개 주면 (\code{groupby(["department","gender"])}) 모든 조합별로 나눕니다 (\S3.3의 교차표).}
+
+\subsection*{0.6\quad \code{crosstab}: 빈도 교차표}
+\addcontentsline{toc}{subsection}{0.6\quad crosstab: 빈도 교차표}
+\begin{codebox}
+pd.crosstab(t["gender"], t["hired"]) \hfill \# 행 = gender, 열 = hired, 칸 = 사람 수
+\end{codebox}
+\begin{center}\small
+\begin{tabular}{@{}l c c@{}}
+\toprule
+gender $\backslash$ hired & 0 & 1 \\
+\midrule
+F & 6 & 1 \\
+M & 1 & 2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\aside{※ 비율로 보려면 \code{normalize="index"} (행 합이 1). $\chi^2$ 검정(\S5.3)은 이 표를 그대로 입력으로 받습니다.}
+
+\subsection*{0.7\quad 결측 처리: \code{dropna()}}
+\addcontentsline{toc}{subsection}{0.7\quad 결측 처리: dropna()}
+\begin{codebox}
+df[df["test\_score"].isna()] \hfill \# 결측 행 보기: 지원자 38, 94, 112, 136, 147, ... (18명)\\
+d = df.dropna() \hfill \# 결측이 하나라도 있는 행 제거 $\to$ 582행
+\end{codebox}
+\aside{※ \code{dropna()}는 원본 \code{df}를 바꾸지 않고 \emph{새 표}를 돌려줍니다. 그래서 \code{d = ...}로 받아야 합니다. 회귀(\S6–7)는 이 \code{d}를 씁니다.}
+
+\subsection*{0.8\quad 회귀 수식은 어떻게 행렬이 되나}
+\addcontentsline{toc}{subsection}{0.8\quad 회귀 수식은 어떻게 행렬이 되나}
+\begin{codebox}
+import statsmodels.formula.api as smf\\
+m = smf.ols("hired \~{} C(gender) + C(department) + C(degree) + test\_score + years\_experience", data=d)
+\end{codebox}
+statsmodels는 수식 문자열을 읽어 \S6.2의 행렬 $X$를 만듭니다. 처음 10행에 대해 만들어지는 $X$:
+\begin{center}\small
+\begin{tabular}{@{}r c c c c c r r@{}}
+\toprule
+지원자 & Intercept & \code{[T.M]} & \code{[T.Marketing]} & \code{[T.Master]} & \code{[T.PhD]} & test\_score & years\_exp \\
+\midrule
+1 & 1 & 1 & 0 & 0 & 0 & 69 & 5 \\
+2 & 1 & 0 & 1 & 1 & 0 & 76 & 5 \\
+3 & 1 & 0 & 1 & 0 & 0 & 73 & 4 \\
+4 & 1 & 1 & 0 & 1 & 0 & 73 & 6 \\
+5 & 1 & 0 & 1 & 0 & 0 & 49 & 5 \\
+6 & 1 & 0 & 1 & 0 & 1 & 62 & 4 \\
+7 & 1 & 0 & 1 & 0 & 1 & 42 & 6 \\
+8 & 1 & 0 & 1 & 0 & 0 & 73 & 3 \\
+9 & 1 & 1 & 0 & 0 & 0 & 65 & 2 \\
+10 & 1 & 0 & 1 & 1 & 0 & 69 & 3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+\item \code{C(gender)} $\to$ \code{[T.M]} 한 열: 남성 1, 여성 0. 기준 범주(F)는 열이 없습니다 (알파벳 순 첫 번째가 기준).
+\item \code{C(degree)} $\to$ Master, PhD 두 열. Bachelor는 둘 다 0 (\S6.4 dummy variable).
+\item 숫자 열은 그대로 들어갑니다. \code{Intercept}는 자동으로 추가되는 1의 열.
+\item 그다음 $\hat\beta=(X^\top X)^{-1}X^\top y$를 계산합니다 (\S6.3). \code{.fit()}이 이 단계입니다.
+\end{itemize}
+\aside{※ 이 10행만으로는 회귀를 할 수 없습니다: \code{[T.M]}과 \code{[T.Marketing]} 열이 정확히 반대(남성 = Engineering, 여성 = Marketing)라서, 두 열과 Intercept가 일차종속 ($[T.M]+[T.Marketing]=\text{Intercept}$)입니다. 그러면 $X^\top X$의 역행렬이 없습니다 (\term{perfect multicollinearity}). 600행 전체에서는 Marketing 남성, Engineering 여성이 있어서 풀립니다. 성별과 부서가 강하게 얽혀 있다는 것(\S3.3)의 극단적인 형태입니다.}
+
+\subsection*{0.9\quad 결과 꺼내기}
+\addcontentsline{toc}{subsection}{0.9\quad 결과 꺼내기}
+\begin{codebox}
+fit = m.fit(cov\_type="HC1") \hfill \# robust SE로 추정\\
+fit.params \hfill \# 계수 $\hat\beta$ (Series, index = 항 이름)\\
+fit.bse \hfill \# 표준오차 SE\\
+fit.pvalues \hfill \# p-value\\
+fit.conf\_int() \hfill \# 95\% 신뢰구간 (두 열)\\
+fit.params["C(gender)[T.M]"] \hfill \# 0.088 (\S6.9의 m2)\\
+fit.summary() \hfill \# 전체 표
+\end{codebox}
+\aside{※ \code{summary()} 표에서 볼 곳: \code{coef} (계수), \code{std err}, \code{P>|z|} (p-value), \code{[0.025 0.975]} (신뢰구간). 나머지(Omnibus, Durbin-Watson 등)는 이 분석에서는 무시해도 됩니다.}
+
+\begin{whybox}{이 장과 본문의 관계}
+본문의 각 장 끝에 \textbf{``pandas 코드''} 소절이 있어서, 그 장의 숫자를 만든 코드를 그대로 보여 줍니다. 모두 이 장의 \code{df} (600행), \code{d} (결측 제거 582행)에서 출발합니다.
+\end{whybox}
+
+%=================================================
+\section{전체 지도: 데이터 테이블을 받으면 무엇을 하는가}
+
+통계 분석은 ``방법을 고르는 일''이 아니라 \textbf{질문 → 데이터 분류 → 기술 → 모형 → 추정 → 검증 → 해석}의 순서로 진행됩니다. 이 책도 이 순서를 그대로 따라갑니다.
+
+\begin{center}
+\begin{tabular}{@{}c l l l@{}}
+\toprule
+단계 & 하는 일 & 핵심 질문 & 이 책 \\
+\midrule
+0 & 질문 정의 & 무엇을 주장하고 싶은가? & \S1 \\
+1 & 데이터 분류 & 각 열은 어떤 종류이고 어떤 역할인가? & \S2 \\
+2 & 기술통계·EDA & 그룹별로 숫자가 어떻게 다른가? & \S3 \\
+3 & 확률모형 & 데이터가 어떤 분포에서 나왔다고 볼까? & \S4 \\
+4 & 추정 (MoM, MLE) & 모형의 parameter 값은 얼마인가? & \S4 \\
+5 & 가설검정·신뢰구간 & 그 차이가 우연일 수 있는가? & \S5 \\
+6 & 회귀 (OLS, Logistic) & 다른 변수를 통제해도 차이가 남는가? & \S6, \S7 \\
+7 & Bayesian 분석 & 차이가 있을 확률은 얼마인가? & \S8 \\
+8 & 공정성·인과 해석 & 이걸 ``차별''이라고 부를 수 있는가? & \S9 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{databox}{이번 datathon의 질문}
+``채용 과정에 gender bias가 있는가?'' 이 질문을 통계적으로 다룰 수 있는 형태로 바꾸면 다음 세 가지가 됩니다.
+\begin{enumerate}
+\item \textbf{Raw gap}: 남성과 여성의 합격률이 다른가?
+\item \textbf{Adjusted gap}: 학위, 시험점수, 경력, 부서를 \emph{같게 맞춘} 상태에서도 다른가?
+\item \textbf{Heterogeneity}: 그 차이가 부서마다 다른가?
+\end{enumerate}
+결론을 미리 보면: (1) 21.8\%p 차이, (2) 평균적으로 8.8\%p로 줄어듦, (3) Engineering에서는 남성이 약 +22\%p, Marketing에서는 오히려 여성이 약 +10\%p. 이 책 전체가 이 세 숫자를 \emph{정당하게} 얻는 과정입니다.
+\end{databox}
+
+%=================================================
+\section{데이터 테이블 분류하기}
+
+\subsection{관측 단위와 변수}
+\begin{defbox}{정의}
+\begin{itemize}
+\item \term{Observation unit} (관측 단위): 테이블의 한 행이 나타내는 대상. 여기서는 \emph{지원자 한 명}.
+\item \term{Variable} (변수): 한 열. 행마다 값이 달라질 수 있는 특성.
+\item \term{Population} (모집단) vs \term{Sample} (표본): 우리가 알고 싶은 것은 ``이 회사의 채용 과정 전체''이고, 가진 것은 그중 600명의 표본.
+\end{itemize}
+\end{defbox}
+
+\subsection{변수의 종류 (Type)}
+변수의 종류가 쓸 수 있는 방법을 결정합니다. 평균을 낼 수 있는지, 순서가 있는지가 핵심입니다.
+
+\begin{center}
+\begin{tabular}{@{}l l l l@{}}
+\toprule
+종류 & 의미 & 요약 방법 & 예 \\
+\midrule
+\term{Binary} & 값이 두 개 (0/1) & 비율 (proportion) & \code{hired}, \code{gender} \\
+\term{Nominal} & 순서 없는 범주 & 빈도, 최빈값 & \code{department} \\
+\term{Ordinal} & 순서 있는 범주 & 중앙값, 빈도 & \code{degree} (Bachelor $<$ Master $<$ PhD) \\
+\term{Discrete} & 셀 수 있는 수 & 평균, 분산 & \code{years\_experience} \\
+\term{Continuous} & 연속적인 수 & 평균, 분산, 분포 & \code{test\_score} \\
+\term{Identifier} & 이름표일 뿐 & 분석에 쓰지 않음 & \code{applicant\_id} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\warn \code{applicant\_id}는 숫자이지만 평균을 내면 안 됩니다. ``숫자로 적혀 있다''와 ``수량이다''는 다릅니다. 같은 이유로 범주형 변수는 회귀에 넣을 때 \code{C(degree)}처럼 \term{dummy variable}로 바꿉니다 (\S6.4).
+
+\subsection{변수의 역할 (Role): 무엇이 중요한 데이터인가}
+종류보다 더 중요한 것이 \textbf{역할}입니다. bias 분석에서는 열을 다음 네 가지 역할로 나눕니다.
+
+\begin{defbox}{Bias 분석에서 변수의 네 가지 역할}
+\begin{itemize}
+\item \term{Outcome} $Y$ (결과 변수): 설명하고 싶은 것. $\to$ \code{hired}
+\item \term{Protected attribute} $A$ (보호 속성): 결과에 영향을 주면 \emph{안 되는} 것. $\to$ \code{gender}
+\item \term{Legitimate qualifications} $X$ (정당한 자격): 결과에 영향을 줘도 \emph{되는} 것. $\to$ \code{test\_score}, \code{years\_experience}, \code{degree}
+\item \term{Structural variable} (구조 변수): 그룹을 나누는 맥락. $\to$ \code{department}
+\end{itemize}
+\end{defbox}
+
+\begin{whybox}{왜 이 분류가 결정적인가}
+분석의 핵심 질문은 ``$X$를 같게 맞췄을 때 $A$가 $Y$에 영향을 주는가?''입니다. 그래서
+\begin{itemize}
+\item $Y$와 $A$가 없으면 분석 자체가 불가능합니다.
+\item $X$가 없으면 ``남성이 원래 더 자격이 좋아서'' 같은 대안 설명을 배제할 수 없습니다.
+\item \code{department}는 애매합니다. 부서를 통제하면 ``같은 부서 안에서의 차이''를 보는 것이고, 통제하지 않으면 ``여성이 합격률 낮은 부서에 몰리는 구조''까지 포함한 차이를 보는 것입니다. \emph{둘 다 보고하는 것}이 정답입니다.
+\end{itemize}
+\end{whybox}
+
+\subsection{결측치 (Missing data)}
+\code{test\_score}에만 결측이 18개 있습니다. 결측은 그 \emph{원인}에 따라 세 종류로 나눕니다.
+\begin{itemize}
+\item \term{MCAR} (Missing Completely At Random): 결측이 완전히 무작위. 빼도 편향이 생기지 않습니다.
+\item \term{MAR} (Missing At Random): 결측 여부가 \emph{관측된} 다른 변수(성별, 부서 등)로 설명됩니다.
+\item \term{MNAR} (Missing Not At Random): 결측 여부가 \emph{그 값 자체}와 관련됩니다. 예: 점수가 낮은 사람이 점수를 숨김. 가장 위험한 경우입니다.
+\end{itemize}
+
+\begin{databox}{결측 18행}
+18행 중 합격자는 4명 (22\%)으로 전체 합격률 32\%와 크게 다르지 않고, 600행 중 3\%에 불과합니다. 그래서 \term{listwise deletion} (\code{df.dropna()}, 582행 사용)을 쓰고, 발표에서 ``결측 3\%를 제외했으며 제외해도 결론이 같다''고 한 줄 언급하면 충분합니다.
+\end{databox}
+
+%=================================================
+\section{기술통계와 EDA: 숫자로 먼저 보기}
+
+\subsection{기본 도구}
+\begin{defbox}{정의}
+\begin{itemize}
+\item \term{Sample mean} $\bar x=\frac1n\sum x_i$. 0/1 변수의 평균은 곧 \term{proportion} (1의 비율)입니다.
+\item \term{Sample variance} $s^2=\frac1{n-1}\sum(x_i-\bar x)^2$, \term{standard deviation} $s=\sqrt{s^2}$.
+\item \term{Conditional proportion} $\hat P(Y=1\mid A=a)$: 그룹 $a$ 안에서의 비율. pandas의 \code{groupby("gender")["hired"].mean()}이 정확히 이것입니다.
+\item \term{Contingency table} (교차표): 두 범주형 변수의 빈도표. \code{pd.crosstab}.
+\item \term{Correlation} $r=\frac{\sum(x_i-\bar x)(y_i-\bar y)}{\sqrt{\sum(x_i-\bar x)^2\sum(y_i-\bar y)^2}}\in[-1,1]$: \emph{선형} 관계의 강도.
+\end{itemize}
+\end{defbox}
+
+\subsection{우리 데이터의 숫자}
+\begin{databox}{그룹별 합격률 (selection rate)}
+\begin{center}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+그룹 & 지원자 & 합격 & 합격률 \\
+\midrule
+Female & 313 & 68 & 21.7\% \\
+Male & 287 & 125 & 43.6\% \\
+\midrule
+Engineering & 326 & 148 & 45.4\% \\
+Marketing & 274 & 45 & 16.4\% \\
+\midrule
+Bachelor / Master / PhD & 311 / 231 / 58 & & 27.0 / 36.8 / 41.4\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+자격 변수의 성별 평균은 거의 같습니다: \code{test\_score} 여성 64.7, 남성 65.8; \code{years\_experience} 여성 4.27, 남성 4.65. 상관계수는 \code{hired}–\code{test\_score} 0.25, \code{hired}–\code{years\_experience} 0.20입니다.
+\end{databox}
+
+\subsection{Confounding과 Simpson's paradox}
+\begin{databox}{성별 × 부서 교차표}
+\begin{center}
+\begin{tabular}{@{}l r r r r@{}}
+\toprule
+ & 여성 지원자 & 여성 합격률 & 남성 지원자 & 남성 합격률 \\
+\midrule
+Engineering & 100 & 29.0\% & 226 & 52.7\% \\
+Marketing & 213 & 18.3\% & 61 & 9.8\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+여성의 68\%는 합격률이 낮은 Marketing에, 남성의 79\%는 합격률이 높은 Engineering에 지원했습니다.
+\end{databox}
+
+\begin{defbox}{정의}
+\begin{itemize}
+\item \term{Confounder} (교란 변수): $A$와 $Y$ \emph{둘 다}와 관련이 있어서, $A$와 $Y$ 사이에 가짜 관계를 만들거나 진짜 관계를 가리는 변수. 여기서는 \code{department}가 gender와도, hired와도 관련됩니다.
+\item \term{Simpson's paradox}: 전체에서 본 관계가 하위 그룹으로 나누면 약해지거나 \emph{뒤집히는} 현상.
+\end{itemize}
+\end{defbox}
+
+Marketing에서는 여성 합격률(18.3\%)이 남성(9.8\%)보다 높은데, 전체로 합치면 여성이 크게 낮아 보입니다. 부분적인 Simpson's paradox입니다. 그래서 \textbf{전체 숫자만 보고 결론을 내리면 안 되고}, 반드시 부서별로 나눠 보거나 회귀에서 통제해야 합니다.
+
+\subsection*{pandas 코드: 그룹별 합격률과 교차표}
+\addcontentsline{toc}{subsection}{pandas 코드: 그룹별 합격률과 교차표}
+\begin{codebox}
+df.groupby("gender")["hired"].agg(["count", "sum", "mean"])\hfill \# \S3.2 첫 표\\
+\# F: 313, 68, 0.217 \quad M: 287, 125, 0.436\\[3pt]
+df.groupby("department")["hired"].mean() \hfill \# Engineering 0.454, Marketing 0.164\\
+df.groupby("degree")["hired"].mean() \hfill \# 0.270 / 0.368 / 0.414\\[3pt]
+df.groupby("gender")[["test\_score", "years\_experience"]].mean() \hfill \# 자격 변수의 성별 평균\\
+df[["years\_experience", "test\_score", "hired"]].corr() \hfill \# 상관계수 행렬\\[3pt]
+\# \S3.3 성별 $\times$ 부서: 두 열로 groupby 후 unstack으로 펼치기\\
+rate = df.groupby(["department", "gender"])["hired"].mean().unstack()\\
+n\ \ \ \ = pd.crosstab(df["department"], df["gender"])\\
+\# rate: Engineering F 0.290 M 0.527 / Marketing F 0.183 M 0.098\\
+\# n\ \ \ : Engineering F 100 M 226 \ / Marketing F 213 M 61\\[3pt]
+pd.crosstab(df["gender"], df["department"], normalize="index") \hfill \# 여성의 68\%가 Marketing
+\end{codebox}
+\aside{※ \code{unstack()}: 두 단계 index (department, gender) 중 안쪽(gender)을 열로 올려서 2차원 표로 만듭니다. 다음과 같은 결과입니다.}
+\begin{codebox}
+df.pivot\_table(index="department", columns="gender", values="hired", aggfunc="mean")
+\end{codebox}
+
+%=================================================
+\section{확률모형과 추정: MoM과 MLE}
+
+\subsection{왜 확률모형이 필요한가}
+표본 비율 21.7\%는 ``이 600명''의 사실입니다. 우리가 알고 싶은 것은 ``이 채용 과정이 여성을 뽑을 \emph{확률}''입니다. 같은 과정에서 다른 600명이 지원했다면 숫자가 조금 달랐을 것입니다. 이 흔들림을 다루려면 데이터가 어떤 확률분포에서 나왔다고 \emph{가정}해야 합니다.
+
+\begin{defbox}{정의}
+\begin{itemize}
+\item \term{Parameter} $\theta$: 모집단의 고정된 미지수. 예: 여성의 진짜 합격 확률 $p_F$.
+\item \term{Statistic}: 표본으로 계산한 값. 예: $\hat p_F=68/313$.
+\item \term{Estimator} $\hat\theta$: parameter를 추측하는 규칙(공식). 표본에 따라 달라지는 \emph{확률변수}입니다.
+\item \term{Bias}: $\E[\hat\theta]-\theta$. 0이면 \term{unbiased}.
+\item \term{Standard error} (SE): $\hat\theta$의 표준편차. 추정이 얼마나 흔들리는지.
+\item \term{Consistency}: $n\to\infty$일 때 $\hat\theta\to\theta$.
+\end{itemize}
+\end{defbox}
+
+\subsection{자주 쓰는 분포}
+\begin{center}
+\begin{tabular}{@{}l l l l@{}}
+\toprule
+분포 & 쓰는 곳 & 평균 & 분산 \\
+\midrule
+$\Bern(p)$ & 한 명의 합격 여부 (0/1) & $p$ & $p(1-p)$ \\
+$\Bin(n,p)$ & $n$명 중 합격자 수 & $np$ & $np(1-p)$ \\
+$N(\mu,\sigma^2)$ & 시험점수, 그리고 큰 표본에서의 추정량 & $\mu$ & $\sigma^2$ \\
+$\BetaD(a,b)$ & 확률 $p$ 자체에 대한 믿음 (Bayesian, \S8) & $\frac{a}{a+b}$ & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\term{Central Limit Theorem} (CLT): 독립인 표본의 평균은 $n$이 크면 원래 분포와 상관없이 근사적으로 정규분포를 따릅니다:
+\[
+\bar X\ \approx\ N\!\left(\mu,\ \frac{\sigma^2}{n}\right).
+\]
+이 정리 덕분에 0/1 데이터의 비율에도 $z$-test와 신뢰구간을 쓸 수 있습니다 (\S5).
+
+\subsection{Method of Moments (MoM)}
+\begin{defbox}{MoM의 아이디어}
+모집단의 moment ($\E[X]$, $\E[X^2]$, \dots)를 parameter로 표현한 식에서, 모집단 moment를 표본 moment ($\frac1n\sum x_i$, $\frac1n\sum x_i^2$, \dots)로 \emph{바꿔 넣고} parameter에 대해 푼다.
+\end{defbox}
+
+\textbf{예 1 (Bernoulli).} $Y_i\sim\Bern(p)$이면 $\E[Y]=p$. 표본 moment로 바꾸면
+\[
+\hat p_{\text{MoM}}=\frac1n\sum Y_i=\bar Y.
+\]
+즉 합격률 그 자체입니다. \code{groupby(...).mean()}이 MoM 추정입니다.
+
+\textbf{예 2 (Normal).} $X_i\sim N(\mu,\sigma^2)$이면 $\E[X]=\mu$, $\E[X^2]=\sigma^2+\mu^2$. 바꿔 넣으면
+\[
+\hat\mu=\bar X,\qquad \hat\sigma^2=\frac1n\sum X_i^2-\bar X^2=\frac1n\sum(X_i-\bar X)^2.
+\]
+
+\subsection{Maximum Likelihood Estimation (MLE)}
+\begin{defbox}{MLE의 아이디어}
+\term{Likelihood} $L(\theta)=\prod_i f(x_i\mid\theta)$: parameter가 $\theta$일 때 \emph{지금 관측한 데이터}가 나올 확률(밀도). 이것을 가장 크게 만드는 $\theta$를 고른다. 곱은 미분하기 어려우므로 \term{log-likelihood} $\ell(\theta)=\log L(\theta)=\sum_i\log f(x_i\mid\theta)$를 최대화한다 ($\log$는 증가함수라 최대점이 같다).
+\end{defbox}
+
+\textbf{예 1 (Bernoulli).} $f(y\mid p)=p^y(1-p)^{1-y}$이므로, $k=\sum y_i$라 하면
+\[
+\ell(p)=\sum_i\big[y_i\log p+(1-y_i)\log(1-p)\big]=k\log p+(n-k)\log(1-p).
+\]
+미분해서 0으로 놓으면
+\[
+\ell'(p)=\frac kp-\frac{n-k}{1-p}=0\ \Longrightarrow\ k(1-p)=(n-k)p\ \Longrightarrow\ \hat p_{\text{MLE}}=\frac kn.
+\]
+MoM과 같습니다.
+
+\textbf{예 2 (Normal).} $\ell(\mu,\sigma^2)=-\frac n2\log(2\pi\sigma^2)-\frac1{2\sigma^2}\sum(x_i-\mu)^2$. 편미분하면
+\[
+\hat\mu=\bar x,\qquad \hat\sigma^2_{\text{MLE}}=\frac1n\sum(x_i-\bar x)^2.
+\]
+분모가 $n$이라 \emph{biased}입니다 ($\E[\hat\sigma^2]=\frac{n-1}n\sigma^2$). 그래서 실무에서는 $n-1$로 나눈 $s^2$를 씁니다.
+
+\begin{databox}{test\_score (582명)}
+$\hat\mu=65.24$, $\hat\sigma^2_{\text{MLE}}=135.66$, $s^2=135.89$. $n$이 크면 둘의 차이는 무시할 만합니다. Shapiro–Wilk 정규성 검정 $p=0.47$로, 정규분포 가정에 문제가 없습니다.
+\end{databox}
+
+\subsection{MoM vs MLE}
+\begin{center}
+\begin{tabular}{@{}p{3cm} p{5.6cm} p{5.6cm}@{}}
+\toprule
+ & MoM & MLE \\
+\midrule
+원리 & moment를 맞춘다 & 데이터의 확률을 최대화 \\
+계산 & 보통 쉽다 (방정식 풀기) & 미분, 또는 수치 최적화 \\
+효율 & 분산이 더 클 수 있음 & 큰 표본에서 분산이 가장 작음 (\term{asymptotically efficient}) \\
+분포 가정 & moment만 필요 & 분포 전체가 필요 \\
+쓰이는 곳 & OLS (\S6.6), 빠른 초기값 & Logistic regression (\S7), 대부분의 통계 모형 \\
+\bottomrule
+\end{tabular}
+\end{center}
+MLE의 중요한 성질: 큰 표본에서 $\hat\theta\approx N\big(\theta,\,I(\theta)^{-1}\big)$. 여기서 $I(\theta)=-\E[\ell''(\theta)]$는 \term{Fisher information}이고, log-likelihood가 꼭대기에서 \emph{뾰족할수록} 정보가 많고 SE가 작습니다. 회귀 출력의 \code{std err} 열이 이 공식으로 계산됩니다.
+
+%=================================================
+\section{가설검정과 신뢰구간 (Frequentist)}
+
+\subsection{가설검정의 논리: 귀류법과 같은 구조}
+\begin{defbox}{가설검정의 5단계}
+\begin{enumerate}
+\item \term{Null hypothesis} $H_0$: ``차이 없음''. 예: $p_M=p_F$.\\
+\term{Alternative hypothesis} $H_1$: 보이고 싶은 것. 예: $p_M\neq p_F$ (\term{two-sided}).
+\item \term{Significance level} $\alpha$를 미리 정한다 (보통 0.05).
+\item \term{Test statistic} $T$를 계산한다: 데이터가 $H_0$에서 얼마나 벗어났는지를 하나의 숫자로.
+\item $H_0$가 참일 때 $T$가 따르는 분포(\term{null distribution})를 구한다.
+\item \term{p-value} $=P(\text{지금만큼 또는 더 극단적인 }T\mid H_0)$. $p<\alpha$이면 $H_0$를 기각한다.
+\end{enumerate}
+\end{defbox}
+
+귀류법과 비교하면: ``$H_0$를 가정했더니 \emph{거의 일어날 수 없는} 데이터가 나왔다 $\Rightarrow$ $H_0$를 의심한다.'' 다만 수학의 모순과 달리 ``확률이 낮다''일 뿐이라 틀릴 수 있습니다.
+
+\begin{center}
+\begin{tabular}{@{}l c c@{}}
+\toprule
+ & $H_0$가 실제로 참 & $H_0$가 실제로 거짓 \\
+\midrule
+$H_0$ 기각 & \term{Type I error} (확률 $\alpha$) & 올바른 판단 (\term{power} $=1-\beta$) \\
+$H_0$ 기각 안 함 & 올바른 판단 & \term{Type II error} (확률 $\beta$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{whybox}{p-value에 대한 흔한 오해}
+\begin{itemize}
+\item $p$는 ``$H_0$가 참일 확률''이 \textbf{아닙니다}. $H_0$가 참이라고 \emph{가정했을 때} 이런 데이터가 나올 확률입니다. ``가설이 참일 확률''을 원하면 Bayesian이 필요합니다 (\S8).
+\item $p>0.05$는 ``차이가 없다''가 \textbf{아닙니다}. ``차이가 있다고 말할 증거가 부족하다''입니다. 표본이 작으면 진짜 차이가 있어도 $p$가 큽니다.
+\item $p$가 작다고 차이가 \emph{큰} 것은 아닙니다. 효과 크기 (\term{effect size}, 예: 21.8\%p)를 항상 같이 보고하세요.
+\end{itemize}
+\end{whybox}
+
+\subsection{Two-proportion $z$-test}
+$H_0: p_M=p_F$. CLT에 의해 $\hat p_M-\hat p_F$는 근사적으로 정규분포입니다. $H_0$에서는 두 그룹의 확률이 같으므로 합친 비율 $\hat p=\frac{k_M+k_F}{n_M+n_F}$로 분산을 추정합니다:
+\[
+z=\frac{\hat p_M-\hat p_F}{\sqrt{\hat p(1-\hat p)\left(\frac1{n_M}+\frac1{n_F}\right)}}\ \overset{H_0}{\approx}\ N(0,1).
+\]
+
+\begin{databox}{성별 합격률}
+$\hat p_M=125/287=0.4355$, $\hat p_F=68/313=0.2173$, $\hat p=193/600=0.3217$.
+\[
+z=\frac{0.2183}{\sqrt{0.3217\cdot0.6783\cdot(1/287+1/313)}}=\frac{0.2183}{0.0382}=5.72,\qquad p=1.1\times10^{-8}.
+\]
+부서별로 하면: Engineering $z=3.96$, $p=7.6\times10^{-5}$ (유의); Marketing $z=-1.58$, $p=0.115$ (유의하지 않음, 남성 표본이 61명뿐).
+\end{databox}
+
+\subsection{Chi-square test of independence}
+교차표에서 $H_0$: ``두 변수는 독립''. 독립이면 각 칸의 기대빈도는 $E_{ij}=\frac{(\text{행 합})(\text{열 합})}{n}$이고,
+\[
+\chi^2=\sum_{i,j}\frac{(O_{ij}-E_{ij})^2}{E_{ij}}\ \overset{H_0}{\approx}\ \chi^2_{(r-1)(c-1)}.
+\]
+$2\times2$ 표에서는 $\chi^2=z^2$입니다. 실제로 $5.718^2=32.70$이고, \code{scipy}의 \code{chi2\_contingency}에 \code{correction=False}를 주면 똑같이 32.70이 나옵니다. 칸의 기대빈도가 5보다 작으면 \term{Fisher's exact test}를 씁니다.
+
+\subsection{$t$-test: 평균 비교}
+연속형 변수의 두 그룹 평균 비교. 분산이 다를 수 있으므로 \term{Welch's $t$-test}가 기본입니다:
+\[
+t=\frac{\bar x_1-\bar x_2}{\sqrt{s_1^2/n_1+s_2^2/n_2}}.
+\]
+\begin{databox}{자격에 성별 차이가 있는가?}
+\code{test\_score}: 남성 65.8, 여성 64.7, $t=1.10$, $p=0.27$. 시험점수에 유의한 성별 차이가 없습니다. 따라서 ``남성이 점수가 높아서 더 많이 합격했다''는 설명은 성립하기 어렵습니다. 이것도 중요한 결과입니다.
+\end{databox}
+
+\subsection{신뢰구간 (Confidence interval)}
+\[
+\hat\theta\pm z_{\alpha/2}\cdot\mathrm{SE}(\hat\theta),\qquad z_{0.025}=1.96.
+\]
+\textbf{해석이 까다롭습니다.} 95\% CI는 ``$\theta$가 이 구간에 있을 확률이 95\%''가 \emph{아닙니다}. $\theta$는 고정된 값이라 구간 안에 있거나 없거나 둘 중 하나입니다. 정확한 뜻은 ``이 \emph{방법}으로 구간을 100번 만들면 약 95번은 $\theta$를 포함한다''입니다.
+
+\begin{databox}{여성 합격률의 95\% CI}
+$\hat p_F=0.217$, $\mathrm{SE}=\sqrt{0.217\cdot0.783/313}=0.0233$, CI $=[0.172,\ 0.263]$.
+\end{databox}
+
+\subsection{검정 선택표}
+\begin{center}
+\begin{tabular}{@{}l l p{4.2cm}@{}}
+\toprule
+비교 대상 & 검정 & Python \\
+\midrule
+두 그룹의 비율 & two-proportion $z$, $\chi^2$, Fisher & \code{proportions\_ztest},\newline \code{chi2\_contingency} \\
+두 그룹의 평균 & Welch $t$ (비모수: Mann–Whitney $U$) & \code{ttest\_ind},\newline \code{equal\_var=False} \\
+세 그룹 이상의 평균 & ANOVA (비모수: Kruskal–Wallis) & \code{f\_oneway} \\
+여러 변수를 동시에 통제 & 회귀 계수의 $t$/$z$ test & \code{smf.ols}, \code{smf.logit} \\
+분포 가정 없이 & permutation test, bootstrap (\S10) & 직접 구현 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\warn \term{Multiple testing}: 검정을 20번 하면 $H_0$가 모두 참이어도 평균 1번은 $p<0.05$가 나옵니다. 여러 부서, 여러 학위로 쪼개 검정했다면 \term{Bonferroni correction} ($\alpha/m$ 기준 사용)을 언급하세요.
+
+\subsection*{pandas 코드: 검정과 신뢰구간}
+\addcontentsline{toc}{subsection}{pandas 코드: 검정과 신뢰구간}
+\begin{codebox}
+from statsmodels.stats.proportion import proportions\_ztest, proportion\_confint\\
+import scipy.stats as st\\[3pt]
+\# \S5.2 two-proportion z-test: [합격자 수], [지원자 수]\\
+k = df.groupby("gender")["hired"].sum() \hfill \# F 68, M 125\\
+n = df.groupby("gender")["hired"].count() \hfill \# F 313, M 287\\
+z, p = proportions\_ztest([k["M"], k["F"]], [n["M"], n["F"]]) \hfill \# z = 5.72, p = 1.1e-08\\[3pt]
+\# 부서별로 반복: 조건으로 행을 고른 뒤 같은 계산\\
+for dept, sub in df.groupby("department"):\\
+\ \ \ \ kk = sub.groupby("gender")["hired"].sum(); nn = sub.groupby("gender")["hired"].count()\\
+\ \ \ \ print(dept, proportions\_ztest([kk["M"], kk["F"]], [nn["M"], nn["F"]]))\\
+\# Engineering z = 3.96, p = 7.6e-05 \quad Marketing z = -1.58, p = 0.115\\[3pt]
+\# \S5.3 chi-square: 교차표를 그대로 입력\\
+table = pd.crosstab(df["gender"], df["hired"])\\
+chi2, p, dof, expected = st.chi2\_contingency(table, correction=False) \hfill \# 32.70, 1.1e-08, 1\\[3pt]
+\# \S5.4 Welch t-test: 두 그룹의 점수를 따로 꺼내서\\
+male = df.loc[df["gender"] == "M", "test\_score"].dropna()\\
+female = df.loc[df["gender"] == "F", "test\_score"].dropna()\\
+st.ttest\_ind(male, female, equal\_var=False) \hfill \# t = 1.10, p = 0.27\\[3pt]
+\# \S5.5 신뢰구간\\
+proportion\_confint(68, 313, method="normal") \hfill \# (0.172, 0.263)
+\end{codebox}
+\aside{※ \code{df.loc[행 조건, 열 이름]}: 조건에 맞는 행에서 한 열만 꺼냅니다. \code{df[조건]["열"]}보다 안전하고 빠릅니다.}\\
+\aside{※ \code{for dept, sub in df.groupby(...)}: groupby 결과를 반복하면 (그룹 이름, 그 그룹의 DataFrame) 쌍이 나옵니다. 하위 그룹별로 같은 분석을 반복할 때 씁니다.}
+
+%=================================================
+\section{선형회귀와 OLS}
+
+\subsection{왜 회귀가 필요한가}
+$z$-test는 \emph{두 그룹}만 비교합니다. ``점수, 경력, 학위, 부서를 모두 같게 맞췄을 때''를 표현하려면 여러 변수를 한 번에 다루는 모형이 필요합니다. 그것이 회귀입니다.
+
+\subsection{모형}
+\[
+Y_i=\beta_0+\beta_1x_{i1}+\cdots+\beta_kx_{ik}+\varepsilon_i,\qquad \E[\varepsilon_i\mid x_i]=0.
+\]
+행렬로 쓰면 $y=X\beta+\varepsilon$입니다. $X$는 $n\times(k+1)$ 행렬이고, 첫 열은 모두 1(절편용)입니다.
+
+$\beta_j$의 뜻: \textbf{다른 변수를 모두 고정한 채} $x_j$만 1 늘렸을 때 $\E[Y]$의 변화량. ``통제한다''는 말의 수학적 의미가 바로 이것입니다.
+
+\subsection{OLS: 최소제곱 추정}
+\term{Residual} $e_i=y_i-x_i^\top\beta$를 제곱해서 더한 값을 최소화합니다:
+\[
+S(\beta)=\sum_i(y_i-x_i^\top\beta)^2=(y-X\beta)^\top(y-X\beta).
+\]
+$\beta$로 미분해서 0으로 놓으면 (\term{normal equations}):
+\[
+\frac{\partial S}{\partial\beta}=-2X^\top(y-X\beta)=0\ \Longrightarrow\ X^\top X\,\hat\beta=X^\top y\ \Longrightarrow\ \hat\beta=(X^\top X)^{-1}X^\top y.
+\]
+변수가 하나일 때 풀어 쓰면
+\[
+\hat\beta_1=\frac{\sum(x_i-\bar x)(y_i-\bar y)}{\sum(x_i-\bar x)^2}=\frac{\widehat{\Cov}(x,y)}{\widehat{\Var}(x)},\qquad \hat\beta_0=\bar y-\hat\beta_1\bar x.
+\]
+\textbf{기하학적 의미} (선형대수와 연결): $X\hat\beta$는 $y$를 $X$의 column space 위로 \term{orthogonal projection}한 것입니다. normal equation $X^\top(y-X\hat\beta)=0$은 ``residual 벡터가 모든 열과 직교한다''는 뜻입니다.
+
+\subsection{Dummy variable: 범주형 변수 넣기}
+범주가 $m$개인 변수는 기준 범주(\term{reference category})를 하나 정하고 나머지 $m-1$개를 0/1 열로 만듭니다. \code{C(degree)}는 Bachelor를 기준으로 \code{Master}, \code{PhD} 두 열을 만듭니다. 계수는 ``Bachelor에 비해 얼마나 다른가''입니다. ($m$개를 모두 넣으면 절편 열과 완전히 겹쳐 $X^\top X$의 역행렬이 없습니다: \term{dummy variable trap}.)
+
+\textbf{중요한 사실:} dummy 하나 $D\in\{0,1\}$만 넣은 회귀 $Y=\beta_0+\beta_1D$에서
+\[
+\hat\beta_0=\bar y_{D=0},\qquad \hat\beta_1=\bar y_{D=1}-\bar y_{D=0}.
+\]
+즉 OLS 계수는 정확히 두 그룹의 평균 차이입니다. 증명은 연습 문제 6.
+
+\subsection{Linear Probability Model (LPM)}
+$Y\in\{0,1\}$이면 $\E[Y\mid X]=P(Y=1\mid X)$이므로, OLS 회귀는 \emph{합격 확률}을 선형으로 모델링하는 것입니다. 계수 단위가 확률(\%p)이라 해석이 가장 쉽습니다. 단점 세 가지:
+\begin{enumerate}
+\item \term{Heteroskedasticity}: $\Var(Y\mid X)=p(X)(1-p(X))$가 $X$마다 달라서 일반 SE 공식이 틀립니다. 해결: \term{robust SE} (\code{cov\_type="HC1"}).
+\item 예측값이 $[0,1]$을 벗어날 수 있습니다.
+\item 효과가 확률 수준과 상관없이 일정하다고 가정합니다.
+\end{enumerate}
+2, 3번은 logistic regression이 해결합니다 (\S7).
+
+\subsection{OLS는 MoM이기도 하다}
+모형 가정 $\E[\varepsilon\mid X]=0$에서 $\E[X\varepsilon]=\E[X(Y-X^\top\beta)]=0$ (population moment condition)이 나옵니다. 이것의 sample analog
+\[
+\frac1n\sum_i x_i(y_i-x_i^\top\hat\beta)=0
+\]
+는 정확히 normal equation입니다. 그리고 오차가 정규분포라고 가정하면 OLS는 MLE와도 같습니다. \textbf{OLS = MoM = (정규 오차 하의) MLE}, 세 관점이 한 점에서 만납니다.
+
+\term{Gauss–Markov theorem}: 오차의 분산이 같고 서로 상관이 없으면, OLS는 선형 unbiased estimator 중 분산이 가장 작습니다 (\term{BLUE}).
+
+\subsection{회귀 계수의 검정}
+각 계수에 대해 $H_0:\beta_j=0$을 검정합니다. $t=\hat\beta_j/\mathrm{SE}(\hat\beta_j)$이고, \code{summary()} 표의 \code{P>|z|} 열이 그 p-value입니다. 95\% CI는 $\hat\beta_j\pm1.96\,\mathrm{SE}$. \term{$R^2$}는 $Y$의 분산 중 모형이 설명하는 비율입니다 (0/1 결과에서는 원래 낮게 나오니 신경 쓰지 않아도 됩니다).
+
+\subsection{Omitted variable bias: 왜 통제가 필요한가}
+진짜 모형이 $Y=\beta_0+\beta_1A+\beta_2Z+\varepsilon$인데 $Z$(예: 부서)를 빼고 $Y$를 $A$에만 회귀하면
+\[
+\E[\tilde\beta_1]=\beta_1+\beta_2\cdot\delta,\qquad \delta=\frac{\Cov(A,Z)}{\Var(A)}.
+\]
+$Z$가 $Y$와 관련 있고 ($\beta_2\ne0$) $A$와도 관련 있으면 ($\delta\ne0$) 성별 계수가 편향됩니다. 여기서 Marketing의 계수는 음수 ($\beta_2<0$)이고 남성은 Marketing에 덜 지원하므로 ($\delta<0$), 편향 $\beta_2\delta>0$: 부서를 빼면 성별 효과가 \emph{과대} 추정됩니다. 아래 m1 $\to$ m2에서 0.216이 0.088로 줄어드는 것이 바로 이것입니다.
+
+\subsection{Interaction}
+\code{C(gender)*C(department)}는 $\beta_1\text{Male}+\beta_2\text{Mkt}+\beta_3(\text{Male}\times\text{Mkt})$를 넣습니다. 그러면 남성 효과는 Engineering에서 $\beta_1$, Marketing에서 $\beta_1+\beta_3$로 부서마다 달라질 수 있습니다.
+
+\begin{databox}{세 개의 LPM (582행, robust SE)}
+\begin{center}
+\begin{tabular}{@{}l l c c@{}}
+\toprule
+모형 & 수식 & 남성 효과 & 95\% CI / $p$ \\
+\midrule
+m1 & \code{hired \~{} C(gender)} & $+0.216$ & $p=1.5\times10^{-8}$ \\
+m2 & + 부서, 학위, 점수, 경력 & $+0.088$ & $[0.012,\,0.164]$, $p=0.023$ \\
+m3 & + 성별$\times$부서 & Eng $+0.218$ & $[0.112,\,0.323]$ \\
+ & & Mkt $0.218-0.319=-0.101$ & 상호작용 $[-0.460,\,-0.178]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+m2의 다른 계수: Marketing $-0.221$, Master $+0.084$, PhD $+0.120$, 점수 1점당 $+0.010$, 경력 1년당 $+0.034$. 부서를 나눠 따로 회귀해도 Engineering $+0.210$ ($p=10^{-4}$), Marketing $-0.098$ ($p=0.034$)로 같은 결론입니다.
+
+\textbf{해석.} m2의 8.8\%p는 \emph{정반대인} 두 부서 효과의 평균이라 오해를 부릅니다. 핵심 결론은 m3입니다: ``Engineering에서는 자격과 학위를 통제해도 남성의 합격 확률이 약 22\%p 높다.''
+\end{databox}
+
+\subsection*{pandas 코드: 세 개의 LPM}
+\addcontentsline{toc}{subsection}{pandas 코드: 세 개의 LPM}
+\begin{codebox}
+import statsmodels.formula.api as smf\\
+d = df.dropna() \hfill \# 582행\\[3pt]
+m1 = smf.ols("hired \~{} C(gender)", data=d).fit(cov\_type="HC1")\\
+m2 = smf.ols("hired \~{} C(gender) + C(department) + C(degree) + test\_score + years\_experience",\\
+\ \ \ \ \ \ \ \ \ \ \ \ \ data=d).fit(cov\_type="HC1")\\
+m3 = smf.ols("hired \~{} C(gender)*C(department) + C(degree) + test\_score + years\_experience",\\
+\ \ \ \ \ \ \ \ \ \ \ \ \ data=d).fit(cov\_type="HC1")\\[3pt]
+\# 세 모형의 성별 계수를 한 표로\\
+pd.DataFrame(\{name: [m.params["C(gender)[T.M]"], m.pvalues["C(gender)[T.M]"]]\\
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ for name, m in [("m1", m1), ("m2", m2), ("m3", m3)]\},\\
+\ \ \ \ \ \ \ \ \ \ \ \ \ index=["coef", "p"])\\
+\# m1 0.216 (1.5e-08) \quad m2 0.088 (0.023) \quad m3 0.218 (Engineering에서의 효과)\\[3pt]
+m3.params["C(gender)[T.M]:C(department)[T.Marketing]"] \hfill \# -0.319 (interaction)\\
+m2.conf\_int().loc["C(gender)[T.M]"] \hfill \# [0.012, 0.164]\\[3pt]
+\# 부서별로 따로 회귀 (interaction의 다른 표현)\\
+for dept, sub in d.groupby("department"):\\
+\ \ \ \ f = smf.ols("hired \~{} C(gender) + C(degree) + test\_score + years\_experience", sub).fit(cov\_type="HC1")\\
+\ \ \ \ print(dept, f.params["C(gender)[T.M]"].round(3), f.pvalues["C(gender)[T.M]"].round(3))\\
+\# Engineering 0.21 (0.000) \quad Marketing -0.098 (0.034)\\[3pt]
+(m3.fittedvalues < 0).sum() \hfill \# 43: 확률이 음수로 예측된 사람 수 (LPM 단점)
+\end{codebox}
+\aside{※ 수식의 \code{*}는 ``두 변수 + 둘의 곱''을 모두 넣으라는 뜻이고, \code{:}는 곱 항만 넣습니다. \code{C(gender)*C(department)} $=$ \code{C(gender) + C(department) + C(gender):C(department)}.}\\
+\aside{※ 계수 이름은 \code{m2.params.index}로 확인합니다. 범주형은 \code{C(변수)[T.범주]} 형식입니다.}
+
+%=================================================
+\section{Logistic regression과 GLM}
+
+\subsection{아이디어: log-odds를 직선으로}
+확률 $p\in(0,1)$을 범위 제한이 없는 수로 바꿉니다:
+\[
+p\in(0,1)\ \longrightarrow\ \text{odds}=\frac p{1-p}\in(0,\infty)\ \longrightarrow\ \text{logit}(p)=\log\frac p{1-p}\in(-\infty,\infty).
+\]
+이제 logit을 직선으로 놓습니다:
+\[
+\log\frac{p_i}{1-p_i}=x_i^\top\beta\quad\Longleftrightarrow\quad p_i=\sigma(x_i^\top\beta)=\frac1{1+e^{-x_i^\top\beta}}.
+\]
+$\sigma$는 \term{sigmoid} 함수로, 어떤 실수를 넣어도 $(0,1)$ 사이 값이 나오는 S자 곡선입니다.
+
+\subsection{추정: MLE}
+각 지원자가 $Y_i\sim\Bern(p_i)$이므로 \S4.4의 Bernoulli log-likelihood에 $p_i=\sigma(x_i^\top\beta)$를 넣습니다:
+\[
+\ell(\beta)=\sum_i\big[y_i\log p_i+(1-y_i)\log(1-p_i)\big].
+\]
+$\sigma'(z)=\sigma(z)(1-\sigma(z))$를 쓰면 (연습 문제 8)
+\[
+\frac{\partial\ell}{\partial\beta}=\sum_i x_i\,(y_i-p_i)=X^\top(y-p)=0.
+\]
+OLS의 normal equation $X^\top(y-X\beta)=0$과 같은 모양입니다. 다만 $p$가 $\beta$의 비선형 함수라 닫힌 해가 없어서 \term{Newton's method}로 반복합니다:
+\[
+\beta^{(t+1)}=\beta^{(t)}-H^{-1}\nabla\ell,\qquad H=-X^\top WX,\quad W=\operatorname{diag}\big(p_i(1-p_i)\big).
+\]
+$\ell$은 concave라서 최댓값이 하나뿐이고, 보통 5–10번 만에 수렴합니다.
+
+\subsection{계수 해석: odds ratio와 한계효과}
+\begin{itemize}
+\item $\beta_j$: $x_j$가 1 늘면 \emph{log-odds}가 $\beta_j$만큼 증가.
+\item $e^{\beta_j}$: \term{odds ratio}. odds가 몇 배가 되는가.
+\item \term{Average marginal effect} (AME): 확률 단위의 효과를 사람마다 계산해서 평균한 값. LPM 계수와 직접 비교할 수 있습니다 (\code{get\_margeff()}).
+\end{itemize}
+\warn odds ratio 2는 ``확률이 2배''가 아닙니다. $p=0.2$이면 odds $=0.25$, 2배 하면 $0.5$, 즉 $p=0.33$입니다.
+
+\subsection{모형 비교: Likelihood ratio test, AIC, BIC}
+모형 B가 모형 A에 변수를 $q$개 추가한 것이라면 (\term{nested models}):
+\[
+\text{LR}=2(\ell_B-\ell_A)\ \overset{H_0}{\approx}\ \chi^2_q.
+\]
+\term{AIC} $=-2\ell+2k$, \term{BIC} $=-2\ell+k\log n$: 작을수록 좋습니다. 변수를 많이 쓰면 벌점을 줍니다.
+
+\begin{databox}{Logistic 결과 vs LPM}
+\begin{center}
+\begin{tabular}{@{}l c c c c@{}}
+\toprule
+모형 & logit 계수 & odds ratio & AME (확률) & LPM 계수 \\
+\midrule
+m1 남성 & 1.007 & 2.74 & 0.209 & 0.216 \\
+m2 남성 & 0.470 & 1.60 & 0.082 & 0.088 \\
+m3 남성 (Eng) & 1.064 & 2.90 & \multicolumn{2}{c}{부서별 확률 차이: Eng $+0.219$ / $+0.218$} \\
+m3 남성$\times$Mkt & $-2.046$ & 0.13 & \multicolumn{2}{c}{Mkt $-0.104$ / $-0.101$} \\
+\bottomrule
+\end{tabular}
+\end{center}
+m2 $\to$ m3 LR test: $\text{LR}=15.2$, $p=9.5\times10^{-5}$. AIC $620.7\to607.4$, BIC $651.2\to642.4$로 둘 다 감소. \textbf{Interaction은 통계적으로 필요합니다.} 그리고 logistic과 LPM의 결론이 확률 단위로 거의 같습니다.
+\end{databox}
+
+\subsection{GLM: 하나의 틀}
+LPM과 logistic은 \term{Generalized Linear Model}의 특수한 경우입니다: $g(\E[Y\mid X])=X^\top\beta$.
+\begin{center}
+\begin{tabular}{@{}l l l l@{}}
+\toprule
+$Y$의 종류 & 분포 & link $g$ & 모형 \\
+\midrule
+연속형 & Normal & identity & 선형회귀 (OLS) \\
+0/1 & Bernoulli & logit & Logistic regression \\
+0/1 & Bernoulli & probit ($\Phi^{-1}$) & Probit regression \\
+횟수 (0, 1, 2, \dots) & Poisson & log & Poisson regression \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{pandas 코드: Logistic regression}
+\addcontentsline{toc}{subsection}{pandas 코드: Logistic regression}
+\begin{codebox}
+l2 = smf.logit("hired \~{} C(gender) + C(department) + C(degree) + test\_score + years\_experience", d).fit()\\
+l3 = smf.logit("hired \~{} C(gender)*C(department) + C(degree) + test\_score + years\_experience", d).fit()\\[3pt]
+np.exp(l2.params["C(gender)[T.M]"]) \hfill \# odds ratio 1.60\\
+l2.get\_margeff().summary\_frame() \hfill \# 평균 한계효과 (확률 단위): 성별 0.082\\[3pt]
+\# 부서별 성별 효과를 확률로: 모든 사람을 남/여로 바꿔 예측한 뒤 평균 비교\\
+for dept in ["Engineering", "Marketing"]:\\
+\ \ \ \ sub = d[d["department"] == dept]\\
+\ \ \ \ pm = l3.predict(sub.assign(gender="M")).mean()\\
+\ \ \ \ pf = l3.predict(sub.assign(gender="F")).mean()\\
+\ \ \ \ print(dept, round(pm - pf, 3)) \hfill \# Engineering +0.219, Marketing -0.104\\[3pt]
+\# \S7.4 Likelihood ratio test\\
+LR = 2 * (l3.llf - l2.llf) \hfill \# 15.2\\
+st.chi2.sf(LR, df=1) \hfill \# p = 9.5e-05\\
+l2.aic, l3.aic \hfill \# 620.7, 607.4
+\end{codebox}
+\aside{※ \code{sub.assign(gender="M")}: \code{sub}를 복사하면서 \code{gender} 열을 전부 \code{"M"}으로 바꾼 새 표. 원본은 그대로입니다. ``모든 사람이 남성이었다면''의 예측 확률을 구하는 반사실(counterfactual) 계산입니다.}\\
+\aside{※ \code{.llf}: log-likelihood $\ell(\hat\beta)$ 값. \code{.fit()}이 Newton's method로 최대화한 결과입니다 (\S7.2).}
+
+%=================================================
+\section{Bayesian 통계: 왜, 어떻게}
+
+\subsection{두 관점의 차이}
+\begin{defbox}{Frequentist vs Bayesian}
+\begin{itemize}
+\item \term{Frequentist}: 확률 = 반복했을 때의 빈도. parameter $\theta$는 \emph{고정된 미지수}이고, 확률은 데이터에만 붙습니다. 그래서 ``$p_M>p_F$일 확률''이라는 말을 할 수 없습니다.
+\item \term{Bayesian}: 확률 = 믿음의 정도. $\theta$도 불확실하므로 \emph{확률분포}로 표현합니다. 데이터를 보고 그 분포를 업데이트합니다.
+\end{itemize}
+\end{defbox}
+
+\subsection{Bayes' theorem}
+\[
+\underbrace{p(\theta\mid\text{data})}_{\text{posterior}}=\frac{\overbrace{p(\text{data}\mid\theta)}^{\text{likelihood}}\ \overbrace{p(\theta)}^{\text{prior}}}{p(\text{data})}\ \propto\ \text{likelihood}\times\text{prior}.
+\]
+\begin{itemize}
+\item \term{Prior} $p(\theta)$: 데이터를 보기 전의 믿음.
+\item \term{Likelihood}: MLE에서 쓴 것과 같은 함수입니다.
+\item \term{Posterior}: 데이터를 본 후의 믿음. 모든 결론은 여기서 나옵니다.
+\end{itemize}
+
+\subsection{Beta–Binomial: 합격률의 Bayesian 추정}
+Prior $p\sim\BetaD(a,b)$, 즉 $p(p)\propto p^{a-1}(1-p)^{b-1}$. $n$명 중 $k$명 합격이면 likelihood $\propto p^k(1-p)^{n-k}$. 곱하면
+\[
+p(p\mid k)\ \propto\ p^{k+a-1}(1-p)^{n-k+b-1}\quad\Longrightarrow\quad p\mid k\ \sim\ \BetaD(a+k,\ b+n-k).
+\]
+posterior가 prior와 같은 분포족으로 나옵니다 (\term{conjugate prior}). 해석: $a$, $b$는 ``미리 본 가상의 합격/불합격 수''입니다. $\BetaD(1,1)$은 $[0,1]$ 위의 uniform, 즉 ``아무것도 모른다''는 prior입니다.
+
+Posterior mean $=\frac{a+k}{a+b+n}$는 prior mean $\frac a{a+b}$과 MLE $\frac kn$의 가중평균이고, $n$이 클수록 MLE에 가까워집니다. 데이터가 많으면 prior는 거의 상관이 없어집니다.
+
+\begin{databox}{Prior $\BetaD(1,1)$로 계산}
+\begin{center}
+\begin{tabular}{@{}l l c c@{}}
+\toprule
+그룹 & posterior & 95\% credible interval & 비교: frequentist 95\% CI \\
+\midrule
+여성 (68/313) & $\BetaD(69,246)$ & $[0.175,\ 0.266]$ & $[0.172,\ 0.263]$ \\
+남성 (125/287) & $\BetaD(126,163)$ & $[0.379,\ 0.493]$ & $[0.378,\ 0.493]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+posterior에서 $p_M$과 $p_F$를 20만 번씩 뽑아 차이를 계산하면:
+\begin{center}
+\begin{tabular}{@{}l c c c@{}}
+\toprule
+ & $P(p_M>p_F\mid\text{data})$ & $p_M-p_F$ 중앙값 & 95\% credible interval \\
+\midrule
+전체 & $\approx1.000$ & $0.217$ & $[0.144,\ 0.289]$ \\
+Engineering & $0.99997$ & $0.233$ & $[0.121,\ 0.338]$ \\
+Marketing & $0.065$ & $-0.078$ & $[-0.161,\ 0.025]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+Marketing: frequentist 검정은 ``$p=0.115$, 유의하지 않음''으로 끝납니다. Bayesian은 ``여성의 합격률이 더 높을 확률이 93.5\%''라고 말할 수 있습니다. 같은 데이터에서 훨씬 쓸모 있는 문장입니다.
+\end{databox}
+
+\subsection{왜 Bayesian을 많이 쓰는가}
+\begin{whybox}{Bayesian을 쓰는 다섯 가지 이유}
+\begin{enumerate}
+\item \textbf{질문에 직접 답한다.} 사람들이 실제로 궁금한 것은 ``차이가 있을 확률''이지 ``차이가 없다고 가정했을 때 이 데이터가 나올 확률''(p-value)이 아닙니다. 의사결정(A/B 테스트, 정책)에서 특히 중요합니다.
+\item \textbf{작은 그룹에 강하다.} Marketing 남성은 61명, 합격 6명입니다. 이렇게 작은 셀은 MLE가 크게 흔들립니다. prior가 극단적인 추정을 적당히 잡아 줍니다 (\term{shrinkage}). 교차 그룹(예: 성별$\times$부서$\times$학위)으로 쪼갤수록 이 장점이 커집니다.
+\item \textbf{불확실성이 자연스럽게 전파된다.} posterior 샘플로 disparate impact ratio $p_F/p_M$ 같은 복잡한 값도 그냥 계산하면 분포가 나옵니다. 예: Engineering에서 $P(p_F/p_M<0.8)=0.991$. frequentist로는 delta method 같은 근사가 필요합니다.
+\item \textbf{순차적 업데이트.} 오늘의 posterior가 내일의 prior가 됩니다. 데이터가 들어올 때마다 갱신하는 시스템(추천, 광고, 임상시험)에 적합합니다.
+\item \textbf{기존 지식을 넣을 수 있다.} ``업계 평균 합격률이 30\% 근처''라는 정보를 prior로 반영할 수 있습니다. 반대로 이것은 비판의 대상이기도 합니다. 그래서 prior를 바꿔도 결론이 같은지 보여주는 \term{sensitivity analysis}가 필수입니다.
+\end{enumerate}
+\end{whybox}
+
+\subsection{Bayesian 가설 비교}
+\begin{itemize}
+\item \textbf{Posterior probability}: $P(p_M>p_F\mid\text{data})$를 직접 보고합니다. 가장 간단하고 실용적입니다.
+\item \textbf{Credible interval}이 0을 포함하는지 봅니다. 해석은 말 그대로 ``$\theta$가 이 구간에 있을 확률이 95\%''입니다 (CI와 다른 점).
+\item \term{Bayes factor} $\mathrm{BF}_{10}=\frac{p(\text{data}\mid H_1)}{p(\text{data}\mid H_0)}$: 데이터가 $H_1$을 $H_0$보다 몇 배 지지하는가. 3 이상이면 ``지지'', 10 이상이면 ``강한 지지''로 읽는 관행이 있습니다.
+\end{itemize}
+
+\subsection{Bayesian 회귀와 MAP}
+회귀 계수에도 prior를 줄 수 있습니다: $\beta_j\sim N(0,\tau^2)$. posterior를 최대화하는 점 (\term{MAP}, maximum a posteriori)을 구하면
+\[
+\hat\beta_{\text{MAP}}=\arg\max_\beta\Big[\ell(\beta)-\frac1{2\tau^2}\sum_j\beta_j^2\Big].
+\]
+이것은 정확히 \term{Ridge regression} ($L_2$ 정규화)입니다. Laplace prior를 쓰면 \term{Lasso} ($L_1$)가 됩니다. 머신러닝의 정규화는 Bayesian prior를 다르게 본 것입니다. 전체 posterior를 구하려면 \term{MCMC}를 씁니다 (Python: \code{PyMC}, \code{bambi}).
+
+\subsection{요약표}
+\begin{center}
+\begin{tabular}{@{}p{3.4cm} p{5.5cm} p{5.5cm}@{}}
+\toprule
+ & Frequentist & Bayesian \\
+\midrule
+parameter & 고정된 미지수 & 확률분포 \\
+추정 & MLE, MoM (점 하나) & posterior 분포 전체 \\
+구간 & Confidence interval & Credible interval \\
+가설 & p-value, 기각/채택 & $P(H\mid\text{data})$, Bayes factor \\
+사전 지식 & 쓰지 않음 & prior로 반영 \\
+작은 표본 & 불안정 & shrinkage로 안정 \\
+비판 & p-value 오해가 쉬움 & prior가 주관적 \\
+\bottomrule
+\end{tabular}
+\end{center}
+데이터가 충분하면 두 방법의 숫자는 거의 같습니다 (위 표에서 CI와 credible interval이 거의 일치). 차이는 \emph{해석}과 \emph{작은 표본}에서 나타납니다.
+
+\subsection*{pandas 코드: Beta–Binomial 시뮬레이션}
+\addcontentsline{toc}{subsection}{pandas 코드: Beta–Binomial 시뮬레이션}
+\begin{codebox}
+rng = np.random.default\_rng(1)\\
+def prob\_male\_higher(sub, draws=200\_000):\\
+\ \ \ \ k = sub.groupby("gender")["hired"].sum() \hfill \# 합격자 수\\
+\ \ \ \ n = sub.groupby("gender")["hired"].count() \hfill \# 지원자 수\\
+\ \ \ \ pm = rng.beta(1 + k["M"], 1 + n["M"] - k["M"], draws) \hfill \# 사후분포 Beta(1+k, 1+n-k)\\
+\ \ \ \ pf = rng.beta(1 + k["F"], 1 + n["F"] - k["F"], draws)\\
+\ \ \ \ diff = pm - pf\\
+\ \ \ \ return (diff > 0).mean(), np.percentile(diff, [2.5, 50, 97.5])\\[3pt]
+prob\_male\_higher(df) \hfill \# (1.000, [0.144, 0.217, 0.289])\\
+for dept, sub in df.groupby("department"):\\
+\ \ \ \ print(dept, prob\_male\_higher(sub))\\
+\# Engineering (0.99997, [0.121, 0.233, 0.338])\\
+\# Marketing \ \ (0.065, [-0.161, -0.078, 0.025]) \ $\to$ P(여성이 높음) = 0.935\\[3pt]
+st.beta(69, 246).ppf([0.025, 0.975]) \hfill \# 여성 credible interval [0.175, 0.266]
+\end{codebox}
+\aside{※ 사후분포에서 숫자를 많이 뽑아 (\code{rng.beta}) 원하는 양(차이, 비율)을 직접 계산하는 방식입니다. 공식이 없어도 \code{(diff > 0).mean()} 한 줄로 ``남성이 높을 확률''이 나옵니다.}
+
+%=================================================
+\section{공정성 지표와 인과의 한계}
+
+\subsection{Fairness metrics}
+\begin{defbox}{정의 ($\hat Y$ = 채용 결정, $A$ = 성별, $Y^*$ = 실제 적합성)}
+\begin{itemize}
+\item \term{Demographic parity}: $P(\hat Y=1\mid A=F)=P(\hat Y=1\mid A=M)$. 합격률 자체가 같아야 한다.
+\item \term{Disparate impact ratio}: $\dfrac{P(\hat Y=1\mid A=F)}{P(\hat Y=1\mid A=M)}$. 0.8 미만이면 미국 EEOC의 \term{four-fifths rule}상 adverse impact로 봅니다.
+\item \term{Equalized odds}: 실제 자격 $Y^*$가 같은 사람끼리는 합격률이 같아야 한다: $P(\hat Y=1\mid Y^*=y,A=F)=P(\hat Y=1\mid Y^*=y,A=M)$.
+\item \term{Conditional parity}: 정당한 자격 $X$가 같으면 합격률이 같아야 한다. 회귀의 통제가 바로 이것을 검사합니다.
+\end{itemize}
+\end{defbox}
+
+\begin{databox}{Disparate impact}
+전체 $0.217/0.436=0.50$, Engineering $0.290/0.527=0.55$: 둘 다 0.8에 크게 못 미칩니다. Marketing에서는 반대로 남성/여성 $=0.098/0.183=0.54$로 남성이 불리합니다.
+\end{databox}
+
+\textbf{Impossibility theorem} (Kleinberg et al. 2016; Chouldechova 2017): 그룹 간 base rate가 다르면 calibration과 equalized odds 같은 여러 공정성 기준을 \emph{동시에} 만족할 수 없습니다. 그래서 ``어떤 공정성 기준을 썼는가''를 명시해야 합니다.
+
+\subsection{상관은 인과가 아니다}
+회귀의 남성 계수가 유의하다는 것은 ``\emph{관측된} 자격 변수로 설명되지 않는 격차가 있다''까지입니다. ``차별 때문''이라고 말하려면 다음 대안을 배제해야 합니다.
+\begin{itemize}
+\item \textbf{관측되지 않은 변수}: 면접 성적, 추천서, 직무 세부 분야 등. 성별과 관련이 있다면 omitted variable bias가 생깁니다 (\S6.8).
+\item \textbf{선택 편향}: 지원자 풀 자체가 다르게 구성됐을 수 있습니다.
+\item \textbf{Bad control}: 차별의 \emph{결과}일 수 있는 변수(예: 차별 때문에 Marketing으로 유도된 경우의 부서)를 통제하면 오히려 차별을 가립니다.
+\end{itemize}
+인과를 주장하려면 \term{randomized experiment} (예: 같은 이력서에 이름만 바꿔 보내는 audit study)나 \term{causal inference} 방법(matching, instrumental variables, difference-in-differences)이 필요합니다.
+
+\begin{whybox}{발표에서 쓸 정직한 결론 문장}
+``Engineering에서는 시험점수, 경력, 학위를 통제한 후에도 남성의 합격 확률이 약 22\%p 높았다 (95\% CI 11–32\%p). Logistic regression과 Bayesian 분석에서도 같은 결론이 나왔다. 관측 데이터이므로 인과를 단정할 수는 없지만, 데이터에 있는 자격 변수로는 이 격차가 설명되지 않는다. Marketing에서는 반대로 여성이 약 10\%p 높았으며, 남성 지원자가 61명뿐이라 불확실성이 크다.''
+\end{whybox}
+
+\subsection*{pandas 코드: 공정성 지표}
+\addcontentsline{toc}{subsection}{pandas 코드: 공정성 지표}
+\begin{codebox}
+rate = df.groupby("gender")["hired"].mean()\\
+rate["F"] / rate["M"] \hfill \# disparate impact 0.50 (< 0.8)\\[3pt]
+by\_dept = df.groupby(["department", "gender"])["hired"].mean().unstack()\\
+by\_dept["F"] / by\_dept["M"] \hfill \# Engineering 0.55, Marketing 1.86\\
+by\_dept.stack().idxmin() \hfill \# 가장 낮은 셀: (Marketing, M)
+\end{codebox}
+
+%=================================================
+\section{그 밖의 도구들}
+\begin{center}
+\begin{tabular}{@{}p{3.6cm} p{6.4cm} p{4.4cm}@{}}
+\toprule
+도구 & 한 줄 설명 & 언제 쓰나 \\
+\midrule
+\term{Bootstrap} & 표본에서 복원추출을 반복해 추정량의 분포를 만든다 & 공식이 없는 통계량의 SE/CI (예: DI ratio) \\
+\term{Permutation test} & 성별 라벨을 무작위로 섞어 null distribution을 직접 만든다 & 분포 가정 없이 검정 \\
+\term{Mann–Whitney $U$} & 순위 기반 두 그룹 비교 & 정규성이 의심될 때 \\
+\term{ANOVA} & 세 그룹 이상 평균 비교 ($F$-test) & 학위 3종의 점수 비교 \\
+\term{Bonferroni / FDR} & 다중검정 보정 & 하위 그룹을 많이 쪼갰을 때 \\
+\term{Ridge / Lasso} & 계수에 벌점 (= Bayesian prior) & 변수가 많을 때, 예측 \\
+\term{Cross-validation} & 데이터를 나눠 예측 성능을 정직하게 평가 & 예측 모형 비교 \\
+\term{Decision tree, Random forest, XGBoost} & 비선형·상호작용을 자동으로 잡는 예측 모형 & 예측이 목적일 때 (해석은 SHAP) \\
+\term{Matching / Propensity score} & 자격이 비슷한 남녀를 짝지어 비교 & 회귀의 선형 가정이 의심될 때 \\
+\term{Oaxaca–Blinder decomposition} & 격차를 ``자격 차이로 설명되는 부분''과 ``설명되지 않는 부분''으로 분해 & 노동경제학의 임금·채용 격차 분석 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{설명(inference) vs 예측(prediction).} 이번 datathon은 ``bias가 있는가''를 묻는 \emph{설명} 문제이므로 해석 가능한 LPM/logistic이 주인공입니다. XGBoost 같은 모형은 정확도는 높지만 ``성별 효과가 몇 \%p인가''에 바로 답하지 못합니다.
+
+%=================================================
+\section{Datathon 체크리스트}
+\begin{enumerate}
+\item \code{df.info()}, \code{df.isna().sum()}, \code{df.describe()}로 구조 파악 (10분)
+\item 각 열을 $Y$ / $A$ / $X$ / 구조 변수로 분류 (\S2)
+\item 그룹별 합격률 표, 성별$\times$부서 교차표 (\S3) $\to$ Simpson 확인
+\item 자격 변수의 성별 차이 $t$-test (\S5.4): ``자격 차이 때문은 아니다''의 근거
+\item Raw gap 검정: $z$-test 또는 $\chi^2$ (\S5)
+\item LPM m1 $\to$ m2 $\to$ m3, robust SE (\S6)
+\item Logistic으로 같은 결론인지 확인, LR test (\S7)
+\item Bayesian으로 $P(\text{격차}>0)$, 작은 셀 보완 (\S8)
+\item Disparate impact, 한계 명시 (\S9)
+\item 그래프 2–3개: 부서별 성별 합격률 막대그래프, 계수 forest plot, posterior 분포
+\end{enumerate}
+
+\newpage
+%=================================================
+\section{연습 문제}
+
+\begin{probbox}
+\textbf{A. 데이터 분류와 기술통계}
+\begin{enumerate}
+\item \code{hiring\_practice.csv}의 7개 열 각각에 대해 (a) 변수 종류 (b) bias 분석에서의 역할을 쓰시오.
+\item \code{degree}를 Bachelor=1, Master=2, PhD=3인 하나의 숫자 열로 회귀에 넣는 것과 \code{C(degree)}로 넣는 것은 무엇이 다른가?
+\item 성별$\times$부서 표(\S3.3)에서, 각 부서 안의 합격률이 그대로이고 여성의 부서 지원 비율만 남성과 같다면 (Engineering 79\%, Marketing 21\%) 여성 전체 합격률은 얼마가 되겠는가?
+\end{enumerate}
+
+\textbf{B. 추정}
+\begin{enumerate}[resume]
+\item $X_1,\dots,X_n\sim\text{Poisson}(\lambda)$, $P(X=x)=e^{-\lambda}\lambda^x/x!$. $\lambda$의 MoM 추정량과 MLE를 각각 구하시오.
+\item $\hat\sigma^2=\frac1n\sum(X_i-\bar X)^2$에 대해 $\E[\hat\sigma^2]=\frac{n-1}n\sigma^2$임을 보이시오. (힌트: $\sum(X_i-\bar X)^2=\sum(X_i-\mu)^2-n(\bar X-\mu)^2$)
+\end{enumerate}
+
+\textbf{C. 회귀}
+\begin{enumerate}[resume]
+\item $x_i\in\{0,1\}$일 때 $\hat\beta_1=\frac{\sum(x_i-\bar x)(y_i-\bar y)}{\sum(x_i-\bar x)^2}=\bar y_1-\bar y_0$임을 보이시오. ($n_1$ = $x_i=1$인 개수, $\bar y_1$ = 그 그룹의 평균)
+\item m3에서 Marketing의 남성 효과는 $\beta_1+\beta_3$이다. 이것의 SE를 구하려면 $\mathrm{SE}(\hat\beta_1)$, $\mathrm{SE}(\hat\beta_3)$ 외에 무엇이 더 필요한가? 공식을 쓰시오.
+\item $\sigma(z)=1/(1+e^{-z})$에 대해 $\sigma'(z)=\sigma(z)(1-\sigma(z))$를 보이고, 이를 이용해 $\partial\ell/\partial\beta=\sum x_i(y_i-p_i)$를 유도하시오.
+\item m2 logistic의 \code{test\_score} 계수는 0.058이다. 점수가 10점 오르면 odds는 몇 배가 되는가? 합격 확률이 0.20인 사람의 확률은 대략 얼마가 되는가?
+\end{enumerate}
+
+\textbf{D. 검정과 Bayesian}
+\begin{enumerate}[resume]
+\item Marketing의 성별 $z$-test는 $p=0.115$인데, 부서별 회귀에서 남성 계수는 $p=0.034$이다. 두 결과가 다른 이유를 설명하고, 발표에서 어떻게 말해야 하는지 쓰시오.
+\item 친구가 ``$p=0.115$이니까 Marketing에는 성별 차이가 없다''고 말한다. 무엇이 틀렸는가?
+\item Prior $\BetaD(2,8)$ (``합격률은 대략 20\% 정도''라는 믿음)를 쓰고, Marketing 남성 61명 중 6명이 합격했다. posterior 분포와 posterior mean을 구하고, MLE와 비교하시오.
+\item 95\% confidence interval과 95\% credible interval의 해석 차이를 한 문장씩 쓰시오.
+\item 부서를 통제하는 것이 오히려 bias를 \emph{숨길} 수 있는 상황을 하나 들어 설명하시오.
+\end{enumerate}
+\end{probbox}
+
+\newpage
+%=================================================
+\section{풀이}
+
+\textbf{Problem 1.}
+\Ans
+\begin{center}
+\begin{tabular}{@{}l l l@{}}
+\toprule
+열 & 종류 & 역할 \\
+\midrule
+\code{applicant\_id} & identifier & 분석에 쓰지 않음 \\
+\code{gender} & binary (nominal) & protected attribute $A$ \\
+\code{department} & nominal & 구조 변수 (confounder 후보) \\
+\code{years\_experience} & discrete & qualification $X$ \\
+\code{degree} & ordinal & qualification $X$ \\
+\code{test\_score} & continuous & qualification $X$ \\
+\code{hired} & binary & outcome $Y$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Problem 2.}
+\Ans 숫자 하나로 넣으면 Bachelor$\to$Master와 Master$\to$PhD의 효과가 \emph{같다}고 가정합니다 (계수 하나). \code{C(degree)}는 Master, PhD 각각에 별도 계수를 주어 그런 가정을 하지 않습니다.
+\Just 실제 m2에서 Master $+0.084$, PhD $+0.120$으로 간격이 일정하지 않습니다. 범주가 적고 표본이 충분하면 dummy가 안전합니다.
+
+\textbf{Problem 3.}
+\Ans $0.79\times0.290+0.21\times0.183=0.229+0.038=0.268$, 약 26.8\%.
+\Just 원래 21.7\%에서 26.8\%로 오르지만, 남성 43.6\%에는 여전히 크게 못 미칩니다. 격차의 일부는 부서 구성(confounding) 때문이고, 나머지는 Engineering 안의 격차(29.0\% vs 52.7\%) 때문입니다. 이것이 m1$\to$m2에서 계수가 줄지만 0이 되지 않는 이유와 같습니다.
+
+\textbf{Problem 4.}
+\Ans $\hat\lambda_{\text{MoM}}=\hat\lambda_{\text{MLE}}=\bar X$.
+\Just MoM: $\E[X]=\lambda$이므로 $\lambda=\bar X$. MLE: $\ell(\lambda)=\sum(-\lambda+x_i\log\lambda-\log x_i!)=-n\lambda+(\sum x_i)\log\lambda+C$. $\ell'(\lambda)=-n+\frac{\sum x_i}\lambda=0\Rightarrow\hat\lambda=\bar x$. $\ell''=-\sum x_i/\lambda^2<0$이므로 최댓값입니다.
+
+\textbf{Problem 5.}
+\Just 힌트의 항등식은 $X_i-\mu=(X_i-\bar X)+(\bar X-\mu)$를 제곱해서 더하고 $\sum(X_i-\bar X)=0$을 쓰면 나옵니다. 기댓값을 취하면
+\[
+\E\Big[\sum(X_i-\bar X)^2\Big]=\sum\E[(X_i-\mu)^2]-n\E[(\bar X-\mu)^2]=n\sigma^2-n\cdot\frac{\sigma^2}n=(n-1)\sigma^2.
+\]
+$n$으로 나누면 $\E[\hat\sigma^2]=\frac{n-1}n\sigma^2$. 그래서 unbiased하게 만들려면 $n-1$로 나눕니다.
+
+\textbf{Problem 6.}
+\Just $p=n_1/n$이라 하면 $\bar x=p$. 분모: $x_i^2=x_i$이므로 $\sum(x_i-\bar x)^2=\sum x_i-n\bar x^2=n_1-n p^2=np(1-p)$.\\
+분자: $\sum(x_i-\bar x)(y_i-\bar y)=\sum x_iy_i-n\bar x\bar y=n_1\bar y_1-np\bar y$. 여기서 $\bar y=p\bar y_1+(1-p)\bar y_0$이므로
+\[
+n_1\bar y_1-np\big(p\bar y_1+(1-p)\bar y_0\big)=np\bar y_1(1-p)-np(1-p)\bar y_0=np(1-p)(\bar y_1-\bar y_0).
+\]
+나누면 $\hat\beta_1=\bar y_1-\bar y_0$. 그리고 $\hat\beta_0=\bar y-\hat\beta_1p=\bar y_0$.
+
+\textbf{Problem 7.}
+\Ans 두 추정량의 공분산 $\Cov(\hat\beta_1,\hat\beta_3)$가 필요합니다.
+\[
+\mathrm{SE}(\hat\beta_1+\hat\beta_3)=\sqrt{\Var(\hat\beta_1)+\Var(\hat\beta_3)+2\Cov(\hat\beta_1,\hat\beta_3)}.
+\]
+\Just 분산의 성질 $\Var(U+V)=\Var U+\Var V+2\Cov(U,V)$. statsmodels에서는 \code{m3.cov\_params()}에 있고, 간단히 다음처럼 계산할 수 있습니다.
+\begin{center}\small\code{m3.t\_test("C(gender)[T.M] + C(gender)[T.M]:C(department)[T.Marketing] = 0")}\end{center}
+ 또는 부서별로 따로 회귀하면 바로 나옵니다 (Marketing $-0.098$, SE $0.046$).
+
+\textbf{Problem 8.}
+\Just $\sigma(z)=(1+e^{-z})^{-1}$이므로
+\[
+\sigma'(z)=\frac{e^{-z}}{(1+e^{-z})^2}=\frac1{1+e^{-z}}\cdot\frac{e^{-z}}{1+e^{-z}}=\sigma(z)\big(1-\sigma(z)\big).
+\]
+$p_i=\sigma(z_i)$, $z_i=x_i^\top\beta$라 하면 $\partial p_i/\partial\beta=p_i(1-p_i)x_i$. 따라서
+\[
+\frac{\partial\ell}{\partial\beta}=\sum_i\Big[\frac{y_i}{p_i}-\frac{1-y_i}{1-p_i}\Big]p_i(1-p_i)x_i=\sum_i\big[y_i(1-p_i)-(1-y_i)p_i\big]x_i=\sum_i(y_i-p_i)x_i.
+\]
+
+\textbf{Problem 9.}
+\Ans odds $\times e^{0.58}\approx1.79$. 확률 0.20 $\to$ 약 0.31.
+\Just $p=0.2$이면 odds $=0.25$. $0.25\times1.79=0.447$, $p=0.447/1.447\approx0.31$. 같은 10점이라도 $p=0.5$인 사람은 odds $1\to1.79$, $p\approx0.64$로 +14\%p 변하고, $p=0.2$인 사람은 +11\%p 변합니다. 효과가 확률 수준에 따라 다릅니다 (LPM 단점 3을 logistic이 해결하는 방식).
+
+\textbf{Problem 10.}
+\Ans $z$-test는 raw 비교이고, 회귀는 점수, 경력, 학위를 통제합니다. 통제 변수가 결과를 잘 설명하면 잔차 분산이 줄어 SE가 작아지고, 같은 크기의 효과라도 더 정밀하게 추정됩니다.
+\Just 발표에서는 ``Marketing에서 여성이 높은 경향이 있으나, 남성 표본이 61명으로 작아 증거는 중간 정도다 (raw $p=0.12$, 통제 후 $p=0.03$, Bayesian $P(p_F>p_M)=0.94$)''처럼 \emph{모두} 보고합니다. 원하는 결과가 나올 때까지 모형을 바꾸는 것(\term{p-hacking})으로 보이지 않으려면, 분석 계획을 먼저 정하고 결과를 투명하게 보여 주는 것이 중요합니다.
+
+\textbf{Problem 11.}
+\Ans $p>0.05$는 ``차이가 없다''는 증거가 아니라 ``차이가 있다고 말할 만큼 증거가 충분하지 않다''는 뜻입니다.
+\Just 점추정치는 $-8.5$\%p로 작지 않고, 95\% CI도 대부분 음수 쪽입니다. 남성 표본이 61명이라 검정력(power)이 낮습니다. \emph{absence of evidence is not evidence of absence.}
+
+\textbf{Problem 12.}
+\Ans posterior $\BetaD(2+6,\ 8+55)=\BetaD(8,63)$, posterior mean $8/71\approx0.113$. MLE $=6/61\approx0.098$.
+\Just posterior mean은 prior mean $2/10=0.2$와 MLE 0.098의 가중평균입니다. 가중치는 prior의 가상 표본 10, 데이터 61입니다: $\frac{10}{71}(0.2)+\frac{61}{71}(0.098)\approx0.113$. 작은 표본의 극단적인 추정을 prior 쪽으로 조금 당깁니다 (shrinkage).
+
+\textbf{Problem 13.}
+\Ans
+\begin{itemize}
+\item \textbf{Confidence interval}: 같은 방법으로 반복해서 구간을 만들면 그중 95\%가 진짜 $\theta$를 포함한다. (확률은 \emph{구간을 만드는 방법}에 붙음)
+\item \textbf{Credible interval}: 데이터와 prior가 주어졌을 때 $\theta$가 이 구간에 있을 확률이 95\%이다. (확률은 \emph{$\theta$}에 붙음)
+\end{itemize}
+
+\textbf{Problem 14.}
+\Ans 예: 회사가 여성 지원자를 Engineering 대신 Marketing 직무로 유도하거나, Engineering 공고를 여성이 덜 보는 채널에만 냈다면, 부서 배정 자체가 차별의 \emph{통로}입니다.
+\Just 이 경우 부서는 confounder가 아니라 \term{mediator} (gender $\to$ department $\to$ hired)입니다. mediator를 통제하면 그 경로로 흐르는 차별이 계수에서 사라집니다 (\term{bad control}). 그래서 부서를 통제한 결과(m2)와 통제하지 않은 결과(m1)를 \emph{둘 다} 보고하고, 각각이 무엇을 측정하는지 설명해야 합니다.
+
+%=================================================
+\section*{부록: 전체 데이터 (600행)}
+\addcontentsline{toc}{section}{부록: 전체 데이터 (600행)}
+\code{hiring\_practice.csv} 전체. 약어: g = gender, dept = department (Eng = Engineering, Mkt = Marketing), exp = years\_experience, deg = degree (B = Bachelor, M = Master, P = PhD), score = test\_score (-- = 결측), h = hired (1 = 합격).
+
+\begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\renewcommand{\arraystretch}{1.0}
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+1 & M & Eng & 5 & B & 69 & 1 \\
+2 & F & Mkt & 5 & M & 76 & 0 \\
+3 & F & Mkt & 4 & B & 73 & 0 \\
+4 & M & Eng & 6 & M & 73 & 1 \\
+5 & F & Mkt & 5 & B & 49 & 1 \\
+6 & F & Mkt & 4 & P & 62 & 0 \\
+7 & F & Mkt & 6 & P & 42 & 0 \\
+8 & F & Mkt & 3 & B & 73 & 0 \\
+9 & M & Eng & 2 & B & 65 & 0 \\
+10 & F & Mkt & 3 & M & 69 & 0 \\
+11 & M & Mkt & 3 & M & 64 & 0 \\
+12 & M & Eng & 5 & P & 69 & 1 \\
+13 & M & Eng & 4 & M & 41 & 0 \\
+14 & M & Eng & 4 & M & 69 & 1 \\
+15 & M & Eng & 4 & B & 86 & 1 \\
+16 & F & Mkt & 2 & B & 70 & 1 \\
+17 & M & Eng & 5 & B & 60 & 1 \\
+18 & M & Eng & 6 & M & 81 & 1 \\
+19 & F & Mkt & 6 & B & 69 & 0 \\
+20 & F & Mkt & 5 & M & 70 & 1 \\
+21 & F & Eng & 4 & B & 89 & 0 \\
+22 & M & Eng & 6 & M & 71 & 0 \\
+23 & M & Eng & 2 & B & 57 & 0 \\
+24 & M & Eng & 6 & B & 55 & 0 \\
+25 & F & Mkt & 1 & B & 79 & 0 \\
+26 & M & Eng & 7 & B & 46 & 1 \\
+27 & M & Eng & 3 & M & 59 & 1 \\
+28 & M & Eng & 5 & B & 57 & 1 \\
+29 & F & Eng & 5 & M & 77 & 1 \\
+30 & M & Eng & 8 & M & 63 & 1 \\
+31 & M & Eng & 5 & B & 67 & 1 \\
+32 & M & Eng & 6 & B & 43 & 0 \\
+33 & M & Eng & 7 & M & 59 & 0 \\
+34 & F & Mkt & 3 & B & 65 & 0 \\
+35 & F & Eng & 3 & B & 64 & 0 \\
+36 & F & Mkt & 4 & M & 65 & 0 \\
+37 & F & Eng & 2 & M & 72 & 0 \\
+38 & F & Mkt & 3 & M & -- & 0 \\
+39 & F & Eng & 3 & M & 81 & 1 \\
+40 & F & Eng & 4 & B & 59 & 0 \\
+41 & M & Eng & 6 & M & 64 & 1 \\
+42 & M & Eng & 4 & P & 60 & 1 \\
+43 & F & Mkt & 3 & B & 84 & 0 \\
+44 & F & Mkt & 5 & M & 80 & 1 \\
+45 & F & Eng & 7 & B & 49 & 1 \\
+46 & M & Eng & 5 & M & 50 & 0 \\
+47 & M & Eng & 3 & M & 76 & 0 \\
+48 & F & Mkt & 2 & M & 77 & 0 \\
+49 & F & Mkt & 8 & P & 71 & 0 \\
+50 & F & Eng & 5 & P & 47 & 0 \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+51 & M & Mkt & 6 & B & 58 & 0 \\
+52 & F & Eng & 8 & B & 57 & 1 \\
+53 & F & Mkt & 2 & M & 62 & 1 \\
+54 & F & Mkt & 3 & B & 63 & 0 \\
+55 & F & Mkt & 0 & M & 45 & 0 \\
+56 & M & Eng & 5 & P & 57 & 0 \\
+57 & F & Mkt & 6 & B & 58 & 1 \\
+58 & F & Mkt & 3 & B & 40 & 0 \\
+59 & M & Mkt & 4 & P & 85 & 0 \\
+60 & F & Mkt & 5 & B & 85 & 0 \\
+61 & M & Eng & 4 & B & 55 & 1 \\
+62 & F & Mkt & 3 & B & 59 & 0 \\
+63 & M & Eng & 3 & P & 59 & 0 \\
+64 & M & Eng & 5 & B & 56 & 1 \\
+65 & M & Eng & 7 & M & 72 & 1 \\
+66 & M & Eng & 2 & B & 52 & 0 \\
+67 & M & Eng & 4 & B & 76 & 0 \\
+68 & M & Mkt & 6 & M & 73 & 0 \\
+69 & F & Eng & 3 & M & 65 & 0 \\
+70 & F & Mkt & 5 & B & 89 & 1 \\
+71 & F & Mkt & 5 & B & 75 & 0 \\
+72 & M & Mkt & 6 & B & 61 & 0 \\
+73 & M & Eng & 6 & B & 63 & 0 \\
+74 & M & Eng & 8 & M & 79 & 0 \\
+75 & M & Eng & 3 & M & 56 & 0 \\
+76 & F & Mkt & 5 & B & 52 & 0 \\
+77 & F & Eng & 5 & M & 75 & 1 \\
+78 & M & Eng & 2 & B & 74 & 1 \\
+79 & F & Mkt & 8 & B & 56 & 1 \\
+80 & F & Mkt & 3 & B & 88 & 0 \\
+81 & F & Mkt & 4 & B & 60 & 0 \\
+82 & M & Eng & 11 & B & 78 & 1 \\
+83 & F & Mkt & 8 & B & 71 & 0 \\
+84 & F & Mkt & 8 & B & 56 & 0 \\
+85 & F & Mkt & 5 & P & 64 & 0 \\
+86 & F & Mkt & 6 & P & 36 & 0 \\
+87 & F & Mkt & 2 & M & 77 & 0 \\
+88 & M & Eng & 6 & B & 66 & 1 \\
+89 & F & Mkt & 2 & B & 77 & 0 \\
+90 & F & Mkt & 3 & M & 55 & 0 \\
+91 & M & Eng & 8 & B & 63 & 1 \\
+92 & F & Mkt & 4 & B & 49 & 0 \\
+93 & F & Mkt & 6 & B & 56 & 0 \\
+94 & M & Eng & 5 & B & -- & 1 \\
+95 & M & Eng & 7 & B & 72 & 1 \\
+96 & F & Mkt & 5 & M & 81 & 1 \\
+97 & F & Mkt & 5 & B & 78 & 0 \\
+98 & M & Eng & 6 & M & 67 & 0 \\
+99 & M & Eng & 2 & M & 35 & 0 \\
+100 & M & Eng & 4 & M & 83 & 1 \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+101 & F & Mkt & 3 & B & 68 & 0 \\
+102 & M & Mkt & 4 & B & 100 & 0 \\
+103 & F & Mkt & 3 & M & 88 & 1 \\
+104 & F & Mkt & 6 & B & 73 & 0 \\
+105 & F & Mkt & 3 & B & 68 & 0 \\
+106 & F & Mkt & 2 & M & 62 & 1 \\
+107 & M & Eng & 3 & P & 52 & 1 \\
+108 & F & Eng & 2 & M & 58 & 0 \\
+109 & M & Mkt & 9 & B & 65 & 0 \\
+110 & F & Eng & 2 & M & 53 & 0 \\
+111 & F & Mkt & 4 & M & 62 & 0 \\
+112 & M & Eng & 4 & B & -- & 1 \\
+113 & M & Eng & 3 & B & 53 & 0 \\
+114 & M & Eng & 5 & B & 63 & 0 \\
+115 & M & Eng & 4 & M & 62 & 0 \\
+116 & F & Mkt & 5 & B & 67 & 0 \\
+117 & M & Eng & 5 & B & 54 & 0 \\
+118 & F & Mkt & 7 & M & 60 & 0 \\
+119 & F & Mkt & 1 & M & 38 & 0 \\
+120 & M & Eng & 5 & P & 63 & 1 \\
+121 & M & Mkt & 4 & B & 73 & 0 \\
+122 & M & Eng & 3 & M & 73 & 0 \\
+123 & M & Eng & 5 & M & 79 & 1 \\
+124 & F & Eng & 4 & B & 53 & 0 \\
+125 & M & Mkt & 1 & M & 69 & 0 \\
+126 & F & Mkt & 4 & M & 67 & 0 \\
+127 & F & Mkt & 7 & P & 62 & 0 \\
+128 & F & Mkt & 3 & B & 69 & 0 \\
+129 & F & Eng & 2 & B & 66 & 0 \\
+130 & M & Eng & 5 & B & 54 & 0 \\
+131 & F & Mkt & 4 & B & 85 & 0 \\
+132 & M & Mkt & 4 & M & 85 & 0 \\
+133 & F & Mkt & 1 & B & 51 & 0 \\
+134 & F & Eng & 4 & B & 72 & 0 \\
+135 & F & Mkt & 3 & M & 58 & 0 \\
+136 & F & Mkt & 2 & B & -- & 0 \\
+137 & M & Eng & 2 & M & 56 & 0 \\
+138 & M & Eng & 6 & B & 51 & 0 \\
+139 & M & Eng & 2 & B & 71 & 0 \\
+140 & F & Mkt & 7 & B & 59 & 0 \\
+141 & F & Eng & 6 & M & 68 & 0 \\
+142 & M & Eng & 6 & B & 60 & 0 \\
+143 & M & Eng & 4 & B & 52 & 1 \\
+144 & F & Mkt & 4 & B & 35 & 0 \\
+145 & F & Mkt & 5 & B & 77 & 0 \\
+146 & M & Mkt & 9 & B & 69 & 0 \\
+147 & M & Eng & 5 & M & -- & 0 \\
+148 & M & Mkt & 5 & B & 52 & 0 \\
+149 & M & Eng & 5 & M & 62 & 1 \\
+150 & M & Eng & 5 & B & 81 & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\clearpage
+\begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\renewcommand{\arraystretch}{1.0}
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+151 & M & Eng & 2 & M & 74 & 0 \\
+152 & M & Mkt & 4 & B & 75 & 0 \\
+153 & F & Mkt & 5 & B & 70 & 0 \\
+154 & F & Mkt & 6 & M & -- & 0 \\
+155 & F & Mkt & 4 & B & 67 & 1 \\
+156 & M & Mkt & 1 & P & 70 & 0 \\
+157 & F & Eng & 6 & B & 58 & 1 \\
+158 & F & Eng & 5 & M & 40 & 0 \\
+159 & F & Mkt & 6 & P & 70 & 0 \\
+160 & F & Mkt & 3 & B & 63 & 0 \\
+161 & M & Eng & 6 & M & 47 & 0 \\
+162 & F & Mkt & 4 & M & 62 & 0 \\
+163 & F & Eng & 7 & B & 79 & 1 \\
+164 & M & Eng & 4 & M & 54 & 0 \\
+165 & F & Mkt & 4 & M & 61 & 0 \\
+166 & F & Mkt & 4 & M & 59 & 0 \\
+167 & F & Mkt & 2 & M & 55 & 0 \\
+168 & F & Mkt & 3 & B & 57 & 0 \\
+169 & F & Mkt & 4 & B & 62 & 0 \\
+170 & F & Mkt & 4 & B & 76 & 0 \\
+171 & M & Eng & 6 & M & 66 & 1 \\
+172 & M & Eng & 3 & B & 75 & 1 \\
+173 & M & Mkt & 7 & M & 63 & 0 \\
+174 & F & Eng & 5 & B & 66 & 0 \\
+175 & M & Eng & 3 & M & 46 & 1 \\
+176 & M & Eng & 1 & M & 70 & 0 \\
+177 & F & Eng & 4 & M & 76 & 1 \\
+178 & M & Eng & 3 & P & 66 & 1 \\
+179 & M & Mkt & 4 & B & 77 & 0 \\
+180 & M & Eng & 4 & M & 79 & 1 \\
+181 & F & Mkt & 0 & P & 67 & 0 \\
+182 & M & Eng & 6 & B & 71 & 0 \\
+183 & F & Mkt & 7 & B & 88 & 0 \\
+184 & F & Mkt & 6 & B & 56 & 0 \\
+185 & F & Mkt & 3 & B & -- & 0 \\
+186 & M & Eng & 9 & M & 87 & 1 \\
+187 & F & Mkt & 4 & B & 58 & 0 \\
+188 & M & Eng & 2 & B & 88 & 1 \\
+189 & M & Eng & 4 & B & 67 & 0 \\
+190 & M & Mkt & 4 & B & 58 & 0 \\
+191 & F & Mkt & 5 & M & 73 & 0 \\
+192 & M & Eng & 3 & B & 75 & 0 \\
+193 & F & Eng & 4 & B & 60 & 0 \\
+194 & M & Eng & 6 & B & 68 & 0 \\
+195 & M & Eng & 4 & B & 61 & 0 \\
+196 & M & Eng & 4 & M & 59 & 1 \\
+197 & M & Eng & 6 & B & 70 & 1 \\
+198 & F & Mkt & 5 & B & 77 & 0 \\
+199 & M & Mkt & 1 & B & 56 & 0 \\
+200 & M & Mkt & 5 & M & 64 & 0 \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+201 & M & Eng & 4 & P & 90 & 1 \\
+202 & M & Mkt & 2 & B & 73 & 0 \\
+203 & F & Eng & 6 & M & 48 & 1 \\
+204 & F & Mkt & 8 & B & 75 & 0 \\
+205 & M & Mkt & 5 & B & 52 & 0 \\
+206 & M & Mkt & 1 & B & 48 & 0 \\
+207 & F & Mkt & 5 & M & 65 & 0 \\
+208 & F & Mkt & 4 & M & 82 & 1 \\
+209 & F & Mkt & 4 & B & -- & 0 \\
+210 & M & Eng & 3 & B & 83 & 1 \\
+211 & F & Mkt & 4 & B & 76 & 0 \\
+212 & F & Mkt & 5 & B & 62 & 0 \\
+213 & F & Eng & 5 & M & 72 & 0 \\
+214 & M & Mkt & 3 & M & 87 & 1 \\
+215 & M & Eng & 6 & M & 90 & 1 \\
+216 & M & Eng & 6 & M & 47 & 0 \\
+217 & F & Mkt & 2 & M & 70 & 1 \\
+218 & M & Eng & 3 & M & 58 & 0 \\
+219 & M & Eng & 6 & P & 77 & 1 \\
+220 & F & Mkt & 7 & M & 74 & 1 \\
+221 & F & Eng & 6 & M & 66 & 1 \\
+222 & M & Eng & 3 & M & 57 & 1 \\
+223 & M & Eng & 6 & B & 71 & 1 \\
+224 & F & Mkt & 8 & P & 65 & 1 \\
+225 & M & Eng & 6 & B & 68 & 1 \\
+226 & M & Eng & 4 & M & 64 & 1 \\
+227 & M & Eng & 7 & P & 70 & 0 \\
+228 & F & Eng & 2 & B & 66 & 0 \\
+229 & F & Mkt & 3 & B & 76 & 0 \\
+230 & F & Eng & 6 & B & 33 & 0 \\
+231 & F & Eng & 6 & P & 63 & 0 \\
+232 & F & Eng & 2 & B & 60 & 0 \\
+233 & F & Mkt & 6 & B & 70 & 0 \\
+234 & F & Eng & 5 & B & 76 & 0 \\
+235 & M & Eng & 2 & P & 68 & 0 \\
+236 & M & Mkt & 7 & M & 67 & 0 \\
+237 & F & Mkt & 4 & M & 60 & 0 \\
+238 & F & Mkt & 0 & M & 75 & 0 \\
+239 & M & Eng & 2 & M & 88 & 1 \\
+240 & M & Eng & 7 & M & 71 & 0 \\
+241 & M & Eng & 3 & B & 69 & 0 \\
+242 & M & Eng & 5 & P & 71 & 1 \\
+243 & M & Eng & 6 & B & 59 & 1 \\
+244 & M & Mkt & 4 & B & 56 & 0 \\
+245 & M & Eng & 3 & M & 56 & 1 \\
+246 & F & Mkt & 7 & B & 68 & 0 \\
+247 & M & Mkt & 4 & B & -- & 0 \\
+248 & F & Mkt & 1 & B & 69 & 0 \\
+249 & M & Eng & 7 & M & 62 & 1 \\
+250 & F & Eng & 2 & M & 73 & 0 \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+251 & F & Eng & 3 & M & 62 & 0 \\
+252 & F & Mkt & 7 & M & -- & 1 \\
+253 & F & Mkt & 3 & M & 59 & 0 \\
+254 & M & Eng & 8 & B & 70 & 1 \\
+255 & F & Mkt & 2 & M & 54 & 0 \\
+256 & M & Eng & 3 & M & 47 & 0 \\
+257 & F & Mkt & 7 & M & 72 & 0 \\
+258 & F & Mkt & 3 & M & 82 & 1 \\
+259 & F & Mkt & 2 & B & 60 & 0 \\
+260 & M & Eng & 5 & M & 35 & 0 \\
+261 & F & Eng & 6 & M & 79 & 0 \\
+262 & M & Eng & 3 & B & 67 & 0 \\
+263 & M & Mkt & 9 & B & 93 & 0 \\
+264 & M & Eng & 3 & B & 83 & 0 \\
+265 & M & Eng & 3 & M & 59 & 1 \\
+266 & M & Eng & 3 & B & 65 & 0 \\
+267 & F & Eng & 6 & B & 72 & 1 \\
+268 & M & Eng & 4 & M & 58 & 0 \\
+269 & F & Mkt & 1 & M & 84 & 0 \\
+270 & F & Eng & 5 & B & 73 & 0 \\
+271 & F & Eng & 4 & B & 56 & 0 \\
+272 & M & Eng & 6 & M & 82 & 1 \\
+273 & M & Eng & 4 & B & 50 & 0 \\
+274 & M & Eng & 2 & P & 73 & 1 \\
+275 & M & Mkt & 1 & B & 51 & 0 \\
+276 & M & Mkt & 9 & B & 78 & 1 \\
+277 & M & Eng & 6 & B & 56 & 1 \\
+278 & F & Mkt & 3 & B & 59 & 0 \\
+279 & M & Mkt & 1 & M & 69 & 0 \\
+280 & M & Eng & 4 & M & 70 & 0 \\
+281 & M & Eng & 8 & B & 70 & 1 \\
+282 & M & Mkt & 6 & B & 67 & 0 \\
+283 & M & Mkt & 1 & M & 54 & 0 \\
+284 & F & Mkt & 8 & P & 63 & 1 \\
+285 & F & Mkt & 3 & B & 65 & 0 \\
+286 & F & Mkt & 4 & M & 69 & 0 \\
+287 & F & Mkt & 5 & B & 58 & 1 \\
+288 & F & Eng & 4 & B & 74 & 0 \\
+289 & F & Mkt & 8 & B & 60 & 0 \\
+290 & M & Eng & 4 & M & 58 & 1 \\
+291 & F & Mkt & 2 & M & 54 & 0 \\
+292 & F & Mkt & 2 & B & 54 & 0 \\
+293 & F & Eng & 9 & M & 53 & 0 \\
+294 & F & Mkt & 2 & B & 57 & 0 \\
+295 & M & Mkt & 2 & B & 83 & 1 \\
+296 & F & Mkt & 3 & M & 65 & 0 \\
+297 & M & Eng & 3 & B & 87 & 0 \\
+298 & F & Mkt & 1 & B & 44 & 0 \\
+299 & M & Eng & 8 & B & 75 & 1 \\
+300 & F & Mkt & 5 & M & 73 & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\clearpage
+\begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\renewcommand{\arraystretch}{1.0}
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+301 & F & Mkt & 2 & B & 45 & 0 \\
+302 & M & Eng & 6 & P & 67 & 0 \\
+303 & F & Mkt & 8 & B & 67 & 0 \\
+304 & F & Mkt & 4 & B & 70 & 0 \\
+305 & F & Eng & 6 & B & 58 & 0 \\
+306 & M & Eng & 7 & B & 70 & 0 \\
+307 & F & Eng & 9 & B & 77 & 0 \\
+308 & F & Mkt & 5 & B & 53 & 0 \\
+309 & M & Eng & 4 & B & 60 & 0 \\
+310 & M & Eng & 6 & M & 72 & 1 \\
+311 & F & Eng & 3 & M & -- & 0 \\
+312 & F & Mkt & 1 & B & 76 & 0 \\
+313 & F & Eng & 6 & M & 65 & 1 \\
+314 & M & Eng & 5 & B & 76 & 1 \\
+315 & F & Eng & 4 & M & 29 & 0 \\
+316 & F & Mkt & 5 & B & 77 & 0 \\
+317 & F & Mkt & 2 & B & 71 & 0 \\
+318 & F & Eng & 3 & M & 73 & 1 \\
+319 & M & Mkt & 1 & B & 57 & 0 \\
+320 & M & Mkt & 4 & P & 85 & 0 \\
+321 & M & Eng & 4 & M & 56 & 0 \\
+322 & M & Eng & 9 & M & 76 & 1 \\
+323 & F & Eng & 4 & M & 64 & 0 \\
+324 & F & Mkt & 2 & M & 42 & 0 \\
+325 & F & Eng & 2 & B & 73 & 1 \\
+326 & F & Eng & 4 & M & 66 & 0 \\
+327 & F & Mkt & 7 & M & 56 & 0 \\
+328 & M & Eng & 3 & B & 63 & 0 \\
+329 & F & Eng & 5 & B & 98 & 0 \\
+330 & F & Mkt & 5 & B & 57 & 0 \\
+331 & F & Mkt & 5 & B & 77 & 1 \\
+332 & F & Mkt & 4 & B & 63 & 0 \\
+333 & M & Eng & 3 & B & 67 & 0 \\
+334 & M & Eng & 3 & B & 77 & 0 \\
+335 & M & Eng & 7 & M & 76 & 1 \\
+336 & F & Eng & 8 & B & 70 & 1 \\
+337 & M & Eng & 4 & B & 53 & 0 \\
+338 & F & Eng & 5 & M & 68 & 0 \\
+339 & M & Mkt & 0 & B & 68 & 0 \\
+340 & F & Mkt & 7 & B & 58 & 0 \\
+341 & F & Eng & 3 & M & 52 & 0 \\
+342 & F & Mkt & 5 & B & 80 & 1 \\
+343 & F & Mkt & 4 & M & 51 & 0 \\
+344 & F & Mkt & 2 & M & 73 & 1 \\
+345 & F & Mkt & 4 & B & 56 & 0 \\
+346 & M & Eng & 4 & M & 73 & 0 \\
+347 & M & Eng & 6 & M & 42 & 0 \\
+348 & M & Eng & 4 & B & 76 & 1 \\
+349 & F & Eng & 8 & P & 61 & 1 \\
+350 & M & Mkt & 4 & B & 54 & 0 \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+351 & M & Eng & 2 & M & 89 & 1 \\
+352 & F & Eng & 5 & M & 65 & 0 \\
+353 & M & Eng & 4 & B & 68 & 0 \\
+354 & M & Eng & 4 & M & 67 & 1 \\
+355 & F & Eng & 6 & M & 74 & 1 \\
+356 & F & Mkt & 6 & B & 59 & 0 \\
+357 & F & Eng & 2 & P & 84 & 1 \\
+358 & M & Eng & 4 & M & 55 & 0 \\
+359 & M & Eng & 6 & B & 59 & 0 \\
+360 & F & Eng & 8 & M & 68 & 0 \\
+361 & F & Mkt & 3 & M & 91 & 0 \\
+362 & M & Eng & 5 & M & 59 & 1 \\
+363 & F & Mkt & 6 & P & 70 & 0 \\
+364 & M & Eng & 4 & P & 60 & 1 \\
+365 & F & Eng & 1 & B & 56 & 0 \\
+366 & M & Mkt & 7 & M & 69 & 0 \\
+367 & F & Mkt & 1 & B & 83 & 1 \\
+368 & M & Eng & 7 & B & 49 & 0 \\
+369 & M & Eng & 3 & B & 68 & 0 \\
+370 & F & Mkt & 4 & B & 72 & 0 \\
+371 & M & Eng & 4 & M & 63 & 1 \\
+372 & M & Eng & 6 & M & 61 & 1 \\
+373 & F & Eng & 1 & B & 56 & 1 \\
+374 & M & Eng & 5 & M & 60 & 0 \\
+375 & M & Eng & 5 & B & 58 & 1 \\
+376 & F & Mkt & 2 & M & 76 & 1 \\
+377 & F & Mkt & 3 & B & 58 & 0 \\
+378 & M & Eng & 2 & B & 69 & 1 \\
+379 & F & Mkt & 5 & B & 80 & 1 \\
+380 & F & Mkt & 5 & B & 53 & 1 \\
+381 & M & Mkt & 4 & B & 54 & 0 \\
+382 & F & Mkt & 2 & B & 66 & 0 \\
+383 & M & Eng & 6 & B & 59 & 0 \\
+384 & M & Eng & 4 & B & 77 & 1 \\
+385 & F & Mkt & 4 & B & 75 & 1 \\
+386 & F & Eng & 7 & B & 69 & 0 \\
+387 & M & Eng & 9 & M & 80 & 1 \\
+388 & M & Eng & 5 & B & 62 & 1 \\
+389 & M & Eng & 2 & B & 66 & 0 \\
+390 & M & Eng & 8 & M & 79 & 0 \\
+391 & F & Mkt & 1 & M & 94 & 0 \\
+392 & F & Mkt & 4 & B & 60 & 0 \\
+393 & F & Eng & 3 & M & 62 & 1 \\
+394 & M & Eng & 5 & P & -- & 0 \\
+395 & M & Eng & 8 & M & 66 & 1 \\
+396 & F & Eng & 5 & M & 48 & 0 \\
+397 & M & Eng & 7 & P & 71 & 0 \\
+398 & F & Mkt & 6 & B & 65 & 0 \\
+399 & M & Eng & 6 & P & 67 & 0 \\
+400 & F & Eng & 4 & B & 77 & 0 \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+401 & M & Eng & 3 & M & 60 & 0 \\
+402 & M & Mkt & 4 & B & 59 & 0 \\
+403 & M & Eng & 4 & B & 57 & 0 \\
+404 & M & Eng & 2 & B & 80 & 1 \\
+405 & F & Mkt & 4 & P & 69 & 0 \\
+406 & F & Mkt & 4 & B & 34 & 0 \\
+407 & M & Eng & 4 & B & 77 & 0 \\
+408 & M & Eng & 6 & M & 71 & 1 \\
+409 & F & Mkt & 6 & M & 32 & 0 \\
+410 & M & Eng & 5 & B & 85 & 1 \\
+411 & M & Mkt & 3 & M & 88 & 0 \\
+412 & M & Eng & 1 & M & 67 & 0 \\
+413 & M & Mkt & 3 & P & 73 & 1 \\
+414 & F & Eng & 5 & B & 61 & 0 \\
+415 & F & Mkt & 5 & M & 60 & 1 \\
+416 & F & Mkt & 5 & B & 80 & 0 \\
+417 & M & Eng & 4 & P & 60 & 0 \\
+418 & M & Eng & 6 & B & 60 & 1 \\
+419 & F & Eng & 7 & B & 71 & 1 \\
+420 & M & Mkt & 3 & P & 48 & 1 \\
+421 & F & Eng & 5 & P & 60 & 0 \\
+422 & F & Mkt & 3 & B & 75 & 0 \\
+423 & F & Eng & 5 & B & 44 & 0 \\
+424 & M & Eng & 10 & B & 63 & 1 \\
+425 & F & Eng & 6 & B & 60 & 0 \\
+426 & F & Eng & 4 & B & 56 & 0 \\
+427 & M & Eng & 4 & M & 50 & 1 \\
+428 & F & Eng & 3 & B & 54 & 0 \\
+429 & M & Eng & 2 & M & 56 & 0 \\
+430 & F & Mkt & 8 & M & 55 & 0 \\
+431 & F & Mkt & 4 & P & 62 & 0 \\
+432 & F & Mkt & 3 & M & 60 & 0 \\
+433 & F & Mkt & 2 & M & 52 & 0 \\
+434 & F & Mkt & 3 & B & 69 & 0 \\
+435 & F & Mkt & 5 & B & 68 & 0 \\
+436 & M & Eng & 7 & M & 48 & 1 \\
+437 & F & Mkt & 5 & B & 77 & 0 \\
+438 & M & Eng & 2 & B & 62 & 0 \\
+439 & M & Eng & 9 & B & 72 & 1 \\
+440 & F & Mkt & 0 & M & 56 & 0 \\
+441 & F & Eng & 3 & B & 52 & 0 \\
+442 & F & Mkt & 5 & B & 65 & 0 \\
+443 & M & Eng & 7 & B & 53 & 0 \\
+444 & F & Mkt & 5 & B & 77 & 0 \\
+445 & F & Mkt & 2 & M & -- & 0 \\
+446 & M & Eng & 1 & M & 74 & 1 \\
+447 & M & Eng & 4 & P & 65 & 1 \\
+448 & M & Mkt & 2 & M & 60 & 0 \\
+449 & M & Eng & 6 & M & 55 & 0 \\
+450 & F & Eng & 6 & M & 62 & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\clearpage
+\begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\renewcommand{\arraystretch}{1.0}
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+451 & F & Mkt & 3 & B & 55 & 0 \\
+452 & F & Mkt & 2 & M & 58 & 0 \\
+453 & M & Eng & 7 & M & 81 & 1 \\
+454 & M & Mkt & 6 & M & 61 & 0 \\
+455 & F & Mkt & 8 & B & 74 & 0 \\
+456 & M & Mkt & 3 & M & 77 & 1 \\
+457 & F & Eng & 7 & P & 67 & 1 \\
+458 & M & Eng & 2 & B & 70 & 1 \\
+459 & F & Eng & 3 & M & 67 & 0 \\
+460 & M & Eng & 8 & B & 55 & 1 \\
+461 & M & Eng & 7 & B & 62 & 0 \\
+462 & F & Eng & 8 & M & 73 & 1 \\
+463 & F & Mkt & 3 & B & 49 & 0 \\
+464 & F & Mkt & 4 & B & 59 & 0 \\
+465 & M & Eng & 6 & B & 70 & 1 \\
+466 & M & Eng & 4 & M & -- & 0 \\
+467 & M & Mkt & 1 & B & 66 & 0 \\
+468 & M & Eng & 10 & M & 61 & 1 \\
+469 & M & Mkt & 6 & B & 70 & 0 \\
+470 & F & Mkt & 4 & B & 68 & 0 \\
+471 & M & Eng & 4 & B & 66 & 1 \\
+472 & F & Eng & 5 & M & 66 & 0 \\
+473 & F & Mkt & 2 & B & 69 & 0 \\
+474 & F & Mkt & 5 & B & 58 & 0 \\
+475 & M & Mkt & 2 & M & 77 & 0 \\
+476 & M & Eng & 6 & M & 80 & 1 \\
+477 & M & Eng & 6 & B & 62 & 0 \\
+478 & F & Mkt & 3 & M & 37 & 0 \\
+479 & F & Eng & 3 & B & 51 & 0 \\
+480 & F & Eng & 4 & P & 74 & 1 \\
+481 & M & Eng & 3 & B & 53 & 1 \\
+482 & M & Eng & 4 & B & 71 & 0 \\
+483 & F & Eng & 5 & M & 50 & 0 \\
+484 & M & Eng & 2 & M & 72 & 1 \\
+485 & M & Mkt & 2 & B & 66 & 0 \\
+486 & M & Eng & 7 & M & 65 & 1 \\
+487 & F & Eng & 2 & B & 60 & 0 \\
+488 & F & Eng & 4 & M & 70 & 0 \\
+489 & M & Mkt & 6 & B & 51 & 0 \\
+490 & F & Mkt & 4 & B & -- & 0 \\
+491 & F & Mkt & 8 & B & 62 & 0 \\
+492 & F & Mkt & 2 & M & 84 & 0 \\
+493 & F & Mkt & 3 & B & 41 & 0 \\
+494 & F & Mkt & 3 & M & 67 & 0 \\
+495 & F & Eng & 6 & M & 57 & 0 \\
+496 & F & Eng & 6 & M & 71 & 0 \\
+497 & M & Eng & 5 & B & 76 & 1 \\
+498 & F & Eng & 2 & B & 48 & 0 \\
+499 & F & Mkt & 3 & B & 82 & 0 \\
+500 & F & Mkt & 5 & P & 60 & 0 \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+501 & M & Eng & 4 & B & 62 & 0 \\
+502 & M & Eng & 8 & M & 56 & 1 \\
+503 & F & Eng & 7 & B & -- & 0 \\
+504 & F & Mkt & 3 & B & 59 & 0 \\
+505 & F & Mkt & 3 & B & 50 & 0 \\
+506 & F & Mkt & 5 & M & 45 & 0 \\
+507 & F & Eng & 3 & B & 78 & 0 \\
+508 & M & Eng & 2 & P & 78 & 0 \\
+509 & F & Eng & 5 & P & 68 & 0 \\
+510 & M & Eng & 5 & B & 53 & 0 \\
+511 & M & Eng & 4 & M & 78 & 1 \\
+512 & M & Eng & 7 & B & 66 & 1 \\
+513 & F & Eng & 5 & B & 62 & 0 \\
+514 & F & Mkt & 4 & M & 55 & 0 \\
+515 & F & Mkt & 3 & B & 66 & 0 \\
+516 & M & Mkt & 4 & M & 62 & 0 \\
+517 & F & Eng & 9 & M & 61 & 1 \\
+518 & M & Eng & 5 & M & 61 & 0 \\
+519 & F & Mkt & 3 & B & 73 & 1 \\
+520 & M & Eng & 2 & P & 71 & 1 \\
+521 & F & Mkt & 4 & M & 81 & 0 \\
+522 & M & Eng & 3 & M & 61 & 0 \\
+523 & M & Mkt & 0 & M & 50 & 0 \\
+524 & M & Eng & 6 & M & 67 & 1 \\
+525 & F & Mkt & 4 & B & 45 & 0 \\
+526 & F & Mkt & 2 & B & 54 & 0 \\
+527 & F & Mkt & 3 & B & 77 & 0 \\
+528 & M & Eng & 4 & B & 84 & 1 \\
+529 & F & Eng & 4 & B & 70 & 0 \\
+530 & M & Eng & 6 & B & 67 & 1 \\
+531 & M & Eng & 3 & B & 61 & 1 \\
+532 & F & Mkt & 7 & B & 66 & 1 \\
+533 & M & Eng & 5 & M & 65 & 0 \\
+534 & M & Mkt & 5 & B & 69 & 0 \\
+535 & F & Mkt & 6 & B & 55 & 0 \\
+536 & F & Mkt & 3 & B & 67 & 1 \\
+537 & M & Eng & 7 & M & 48 & 0 \\
+538 & M & Mkt & 5 & M & 46 & 0 \\
+539 & F & Mkt & 6 & M & 78 & 0 \\
+540 & M & Eng & 5 & B & 100 & 1 \\
+541 & F & Mkt & 2 & B & 67 & 0 \\
+542 & F & Mkt & 9 & M & 65 & 1 \\
+543 & F & Mkt & 3 & B & 81 & 0 \\
+544 & M & Mkt & 5 & B & 49 & 0 \\
+545 & M & Eng & 4 & B & 46 & 0 \\
+546 & M & Eng & 7 & B & 74 & 1 \\
+547 & M & Eng & 4 & B & 82 & 1 \\
+548 & M & Eng & 4 & P & 72 & 1 \\
+549 & F & Eng & 6 & M & 63 & 1 \\
+550 & F & Mkt & 5 & M & 86 & 1 \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}r c c r c r c@{}}
+\toprule
+id & g & dept & exp & deg & score & h \\
+\midrule
+551 & M & Eng & 5 & M & 59 & 0 \\
+552 & M & Eng & 6 & B & 63 & 0 \\
+553 & F & Mkt & 5 & P & 60 & 1 \\
+554 & F & Mkt & 4 & M & 51 & 0 \\
+555 & M & Eng & 6 & M & 62 & 0 \\
+556 & F & Mkt & 3 & M & 63 & 0 \\
+557 & M & Eng & 5 & B & 64 & 1 \\
+558 & F & Eng & 5 & P & 72 & 0 \\
+559 & M & Eng & 3 & B & 58 & 0 \\
+560 & F & Mkt & 4 & B & 80 & 0 \\
+561 & F & Mkt & 2 & B & 61 & 0 \\
+562 & M & Eng & 4 & B & 52 & 0 \\
+563 & M & Mkt & 6 & B & 51 & 0 \\
+564 & F & Mkt & 6 & M & 60 & 0 \\
+565 & F & Eng & 4 & M & 62 & 0 \\
+566 & F & Mkt & 4 & P & 70 & 0 \\
+567 & M & Eng & 5 & M & -- & 1 \\
+568 & M & Mkt & 3 & P & 78 & 0 \\
+569 & F & Mkt & 8 & P & 59 & 0 \\
+570 & M & Eng & 3 & M & 73 & 1 \\
+571 & M & Eng & 5 & B & 66 & 0 \\
+572 & M & Eng & 8 & B & 73 & 1 \\
+573 & M & Eng & 7 & B & -- & 0 \\
+574 & M & Mkt & 7 & M & 75 & 0 \\
+575 & F & Mkt & 4 & P & 53 & 1 \\
+576 & M & Eng & 6 & M & 91 & 1 \\
+577 & F & Mkt & 5 & M & 46 & 0 \\
+578 & M & Eng & 7 & M & 59 & 1 \\
+579 & M & Mkt & 5 & M & 64 & 0 \\
+580 & M & Eng & 7 & B & 83 & 0 \\
+581 & F & Mkt & 1 & M & 86 & 1 \\
+582 & F & Mkt & 4 & M & 53 & 1 \\
+583 & F & Eng & 5 & P & 79 & 1 \\
+584 & F & Eng & 9 & M & 48 & 1 \\
+585 & F & Mkt & 1 & B & 87 & 1 \\
+586 & M & Mkt & 3 & P & 59 & 0 \\
+587 & F & Mkt & 4 & B & 72 & 0 \\
+588 & F & Mkt & 3 & B & 68 & 0 \\
+589 & F & Eng & 4 & M & 55 & 0 \\
+590 & M & Eng & 4 & B & 66 & 1 \\
+591 & M & Eng & 5 & B & 70 & 1 \\
+592 & F & Mkt & 6 & M & 51 & 0 \\
+593 & F & Mkt & 3 & M & 70 & 0 \\
+594 & F & Eng & 4 & B & 63 & 0 \\
+595 & F & Eng & 3 & B & 56 & 0 \\
+596 & F & Eng & 5 & M & 78 & 1 \\
+597 & F & Eng & 5 & M & 57 & 0 \\
+598 & M & Eng & 5 & B & 45 & 0 \\
+599 & M & Eng & 2 & B & 74 & 1 \\
+600 & M & Eng & 6 & M & 53 & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\clearpage
+\end{document}

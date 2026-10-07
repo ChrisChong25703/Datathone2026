@@ -1,0 +1,91 @@
+% 세 책 공통: 앞쪽 "전체 흐름" 페이지. 각 책에서 \input{roadmap} 으로 넣는다.
+\providecommand{\code}[1]{\texttt{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+% 책별 장 표시 (작은 색 주석)
+\newcommand{\Wc}[1]{{\scriptsize\textsf{\color{blue!60!black}[흐름 #1]}}}
+\newcommand{\Hc}[1]{{\scriptsize\textsf{\color{orange!70!black}[응용 #1]}}}
+\newcommand{\Ac}[1]{{\scriptsize\textsf{\color{green!45!black}[알고 #1]}}}
+\newcommand{\Pc}[1]{{\scriptsize\textsf{\color{red!60!black}[실습 #1]}}}
+
+\section*{먼저 읽기: 분석 전체 흐름과 책 안내}
+\addcontentsline{toc}{section}{먼저 읽기: 분석 전체 흐름과 책 안내}
+
+\textbf{네 권의 역할}
+\begin{center}\small
+\begin{tabular}{@{}l L{5.4cm} L{7.4cm}@{}}
+\toprule
+표시 & 책 (파일) & 역할 \\
+\midrule
+\Wc{} & pandas 흐름으로 따라가는 통계 (\code{pandas-stats-walkthrough}) & \textbf{기초}: 평균·SD·정규·상관·회귀·검정을 pandas 순서대로 \\
+\Hc{} & 채용 데이터로 다시 배우는 통계 (\code{hiring-statistics-book}) & \textbf{응용}: 통제 회귀, logistic, Bayesian, 공정성으로 결론 내기 \\
+\Ac{} & 알고리즘으로 보는 pandas (\code{algorithms-for-datathon}) & \textbf{도구}: 빠르고 정확한 코드, 결정트리·greedy 보조 분석 \\
+\Pc{} & 코드로 연습하는 분류 (\code{classification-workbook}) & \textbf{실습}: 빈칸 노트북으로 분류 모델을 직접 만들고 공정성 감사 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\aside{※ 아래 표의 작은 색 주석이 ``이 단계는 어느 책 몇 장''입니다. 예: \Wc{5} = 흐름 책 5장, \Hc{6.9} = 응용 책 6.9절, \Ac{4} = 알고리즘 책 4장. 0장 = 응용 책 앞의 ``데이터 미리보기와 pandas 작동 원리''.}
+
+\vspace{0.4em}
+\textbf{Datathon 분석 흐름: 데이터를 받은 순간부터 발표까지}
+\begin{center}\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}c L{3.3cm} L{4.6cm} L{5.6cm}@{}}
+\toprule
+단계 & 하는 일 & 대표 pandas 코드 & 해당 장 \\
+\midrule
+① & 질문을 통계 질문으로 & -- &
+  \Hc{1} \Wc{1 추정·가설·검증 상자} \\
+② & 불러오고 구조 확인 & \code{read\_csv}, \code{head}, \code{info} &
+  \Hc{0.1–0.3} \Wc{1} \\
+③ & 변수 분류 (결과 $Y$ / 보호속성 $A$ / 자격 $X$) & \code{dtypes}, \code{value\_counts} &
+  \Hc{2} \Wc{1.1} \\
+④ & 결측·이탈값 처리 & \code{isna}, \code{dropna}, \code{quantile} &
+  \Hc{0.7, 2.4} \Wc{1.3, 2.3} \\
+⑤ & 분포 요약 (중심, 퍼짐, 정규성) & \code{describe}, \code{std}, \code{(x-x.mean())/x.std()} &
+  \Wc{2, 3} \Hc{3.1} \Ac{3 분위수} \\
+⑥ & 그룹별 합격률과 신뢰구간 & \code{groupby().mean()} &
+  \Hc{0.5, 3.2} \Wc{4} \Ac{4 groupby 내부} \\
+⑦ & 교란 변수 확인 (Simpson) & \code{crosstab}, \code{groupby([a,b])} &
+  \Hc{3.3} \Wc{12 ⑧} \\
+⑧ & 가설검정 (차이가 우연인가) & \code{proportions\_ztest}, \code{chi2\_contingency}, \code{ttest\_ind} &
+  \Wc{5, 11, 12} \Hc{5} \\
+⑨ & 상관과 단순회귀 & \code{corr}, \code{pd.cut}, \code{smf.ols} &
+  \Wc{6–8} \Ac{5 pd.cut} \\
+⑩ & 통제 회귀와 interaction (핵심) & \code{smf.ols("y \~{} A + X")}, \code{A*B} &
+  \Hc{0.8–0.9, 6} \Wc{13} \\
+⑪ & 다른 방법으로 재확인 & \code{smf.logit}, \code{rng.beta}, \code{DecisionTreeClassifier} &
+  \Hc{7, 8} \Wc{9 bootstrap} \Ac{6, 7} \Pc{6–10} \\
+⑫ & 공정성 지표와 한계 & \code{rate["F"]/rate["M"]}, \code{idxmin} &
+  \Hc{9} \Ac{8 minimax} \Pc{11} \\
+⑬ & 정리와 발표 & -- &
+  \Hc{9.2 결론 문장, 11 체크리스트} \Wc{14 요약} \Ac{11} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\aside{※ 이론이 막히면: 추정량·MoM·MLE \Wc{9–10} \Hc{4}, 가설 세우기·검정력 \Wc{11}, 코드가 느리면 \Ac{1–2, 4}. 한 번에 돌려 보기: \code{python3 algo\_toolkit.py hiring\_practice.csv} (⑥⑦⑨⑪⑫ 요약).}
+
+\clearpage
+\textbf{6시간 읽기 계획 (읽기 편한 순서)}
+\begin{center}\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}l L{4.6cm} L{6.6cm} r@{}}
+\toprule
+시간 & 무엇을 & 어디를 & 분 \\
+\midrule
+0:00 & 데이터와 pandas 감 잡기 & \Hc{0} 전체, \Hc{1} 전체 지도 & 30 \\
+0:30 & 기초 통계 1: 요약과 분포 & \Wc{1–3} (\code{describe}, 표준화, 정규근사) & 50 \\
+1:20 & 기초 통계 2: 추정과 검정 & \Wc{4–5} (신뢰구간, $z$/$\chi^2$/$t$) & 40 \\
+2:00 & \textit{휴식} & & 10 \\
+2:10 & 기초 통계 3: 상관과 회귀 & \Wc{6–8} (회귀 효과, RMSE, 잔차도) & 50 \\
+3:00 & 검정 고르는 법 & \Wc{12} 검정 도구상자 (표 + 관심 있는 카드만) & 30 \\
+3:30 & 응용 1: 통제와 interaction & \Hc{3, 6} + 각 장 끝 ``pandas 코드'' 직접 실행 & 50 \\
+4:20 & \textit{휴식} & & 10 \\
+4:30 & 응용 2: 재확인 & \Hc{7} logistic, \Hc{8} Bayesian (8.4 ``왜''는 꼭) & 40 \\
+5:10 & 결론과 한계 & \Hc{9}, \Hc{11} 체크리스트, \Ac{표지 결론표} & 20 \\
+5:30 & 도구 실행과 발표 문장 연습 & \code{algo\_toolkit.py} 실행, \Hc{9.2} 문장을 내 말로 & 30 \\
+(여유) & 코드로 손에 익히기 & \Pc{1–12} 빈칸 노트북 (\code{classification\_practice.ipynb}) & 90 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\aside{※ 건너뛰어도 되는 곳 (나중에 참고용): \Wc{9–11, 13}, \Hc{4, 10}, \Ac{1–10} 본문, 모든 연습 문제. 시간이 남으면 \Wc{15} 연습 문제 1–8번부터.}\\
+\aside{※ 각 장은 새 페이지에서 시작하고, 목차의 항목을 누르면 그 쪽으로 이동합니다.}
