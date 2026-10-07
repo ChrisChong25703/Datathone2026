@@ -19,7 +19,7 @@
 \Wc{} & pandas 흐름으로 따라가는 통계 (\code{pandas-stats-walkthrough}) & \textbf{기초}: 평균·SD·정규·상관·회귀·검정을 pandas 순서대로 \\
 \Hc{} & 채용 데이터로 다시 배우는 통계 (\code{hiring-statistics-book}) & \textbf{응용}: 통제 회귀, logistic, Bayesian, 공정성으로 결론 내기 \\
 \Ac{} & 알고리즘으로 보는 pandas (\code{algorithms-for-datathon}) & \textbf{도구}: 빠르고 정확한 코드, 결정트리·greedy 보조 분석 \\
-\Pc{} & 코드로 연습하는 분류 (\code{classification-workbook}) & \textbf{실습}: 빈칸 노트북으로 분류 모델을 직접 만들고 공정성 감사 \\
+\Pc{} & numpy·pandas로 직접 만드는 통계 (\code{stats-basics-workbook}) & \textbf{실습}: 빈칸 노트북으로 통계 공식을 직접 구현, 필요한 곳에 알고리즘 적용 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -42,21 +42,21 @@
 ④ & 결측·이탈값 처리 & \code{isna}, \code{dropna}, \code{quantile} &
   \Hc{0.7, 2.4} \Wc{1.3, 2.3} \\
 ⑤ & 분포 요약 (중심, 퍼짐, 정규성) & \code{describe}, \code{std}, \code{(x-x.mean())/x.std()} &
-  \Wc{2, 3} \Hc{3.1} \Ac{3 분위수} \\
+  \Wc{2, 3} \Hc{3.1} \Ac{3 분위수} \Pc{1–3} \\
 ⑥ & 그룹별 합격률과 신뢰구간 & \code{groupby().mean()} &
-  \Hc{0.5, 3.2} \Wc{4} \Ac{4 groupby 내부} \\
+  \Hc{0.5, 3.2} \Wc{4} \Ac{4 groupby 내부} \Pc{4} \\
 ⑦ & 교란 변수 확인 (Simpson) & \code{crosstab}, \code{groupby([a,b])} &
   \Hc{3.3} \Wc{12 ⑧} \\
 ⑧ & 가설검정 (차이가 우연인가) & \code{proportions\_ztest}, \code{chi2\_contingency}, \code{ttest\_ind} &
-  \Wc{5, 11, 12} \Hc{5} \\
+  \Wc{5, 11, 12} \Hc{5} \Pc{5–7} \\
 ⑨ & 상관과 단순회귀 & \code{corr}, \code{pd.cut}, \code{smf.ols} &
-  \Wc{6–8} \Ac{5 pd.cut} \\
+  \Wc{6–8} \Ac{5 pd.cut} \Pc{8–9} \\
 ⑩ & 통제 회귀와 interaction (핵심) & \code{smf.ols("y \~{} A + X")}, \code{A*B} &
-  \Hc{0.8–0.9, 6} \Wc{13} \\
+  \Hc{0.8–0.9, 6} \Wc{13} \Pc{10} \\
 ⑪ & 다른 방법으로 재확인 & \code{smf.logit}, \code{rng.beta}, \code{DecisionTreeClassifier} &
-  \Hc{7, 8} \Wc{9 bootstrap} \Ac{6, 7} \Pc{6–10} \\
+  \Hc{7, 8} \Wc{9 bootstrap} \Pc{6, 11} \\
 ⑫ & 공정성 지표와 한계 & \code{rate["F"]/rate["M"]}, \code{idxmin} &
-  \Hc{9} \Ac{8 minimax} \Pc{11} \\
+  \Hc{9} \Ac{8 minimax} \\
 ⑬ & 정리와 발표 & -- &
   \Hc{9.2 결론 문장, 11 체크리스트} \Wc{14 요약} \Ac{11} \\
 \bottomrule
@@ -83,9 +83,10 @@
 4:30 & 응용 2: 재확인 & \Hc{7} logistic, \Hc{8} Bayesian (8.4 ``왜''는 꼭) & 40 \\
 5:10 & 결론과 한계 & \Hc{9}, \Hc{11} 체크리스트, \Ac{표지 결론표} & 20 \\
 5:30 & 도구 실행과 발표 문장 연습 & \code{algo\_toolkit.py} 실행, \Hc{9.2} 문장을 내 말로 & 30 \\
-(여유) & 코드로 손에 익히기 & \Pc{1–12} 빈칸 노트북 (\code{classification\_practice.ipynb}) & 90 \\
+(다음 날) & 코드로 손에 익히기 & \Pc{0–12} 빈칸 노트북 (\code{stats\_basics\_practice.ipynb}) & 120 \\
 \bottomrule
 \end{tabular}
 \end{center}
+\aside{※ 범위 밖 (학부 1–2학년 목표를 넘는 것): sklearn을 쓰는 \Ac{6–7}의 결정트리와 \code{advanced/} 폴더의 분류 워크북은 나중에 선택으로.}\\
 \aside{※ 건너뛰어도 되는 곳 (나중에 참고용): \Wc{9–11, 13}, \Hc{4, 10}, \Ac{1–10} 본문, 모든 연습 문제. 시간이 남으면 \Wc{15} 연습 문제 1–8번부터.}\\
 \aside{※ 각 장은 새 페이지에서 시작하고, 목차의 항목을 누르면 그 쪽으로 이동합니다.}

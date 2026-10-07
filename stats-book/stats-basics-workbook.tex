@@ -1,0 +1,767 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.1cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc}
+\usepackage[most]{tcolorbox}
+\usepackage{kotex}
+\setmainhangulfont{Nanum Myeongjo}
+\setsanshangulfont{Apple SD Gothic Neo}
+\usepackage[hidelinks]{hyperref}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Statistics Basics Workbook}
+\rhead{numpy·pandas로 직접 만드는 통계}
+\cfoot{\thepage}
+\setlength{\headheight}{14pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\setlength{\emergencystretch}{2em}
+\setlist[itemize]{leftmargin=1.3em,itemsep=0.2em,topsep=0.2em}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=0.2em,topsep=0.2em}
+\renewcommand{\arraystretch}{1.15}
+\AddToHook{cmd/section/before}{\clearpage}
+\sloppy
+
+\newcommand{\term}[1]{\textbf{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\aside}[1]{{\footnotesize\color{black!65}#1}}
+\newcommand{\Ans}{\par\textbf{Answer.}\ }
+% 다른 책 참조용 작은 주석
+\newcommand{\Wc}[1]{{\scriptsize\textsf{\color{blue!60!black}[흐름 #1]}}}
+\newcommand{\Hc}[1]{{\scriptsize\textsf{\color{orange!70!black}[응용 #1]}}}
+\newcommand{\Ac}[1]{{\scriptsize\textsf{\color{green!45!black}[알고 #1]}}}
+\newcommand{\Nc}[1]{{\scriptsize\textsf{\color{violet!70!black}[Notes #1]}}}
+
+\newtcolorbox{codebox}{breakable,colback=black!3,colframe=black!45,boxrule=0.5pt,arc=1.5pt,
+  left=4pt,right=4pt,top=2pt,bottom=2pt,fontupper=\small\ttfamily}
+\newtcolorbox{outbox}{breakable,colback=green!3,colframe=green!35!black,boxrule=0.5pt,arc=1.5pt,
+  left=4pt,right=4pt,top=2pt,bottom=2pt,fontupper=\small\ttfamily,
+  fonttitle=\bfseries\sffamily\small,title={실행 결과}}
+\newtcolorbox{goalbox}[1]{colback=blue!4,colframe=blue!45!black,boxrule=0.6pt,arc=1.5pt,
+  fonttitle=\bfseries\sffamily,title={#1}}
+\newtcolorbox{howbox}{breakable,colback=orange!4,colframe=orange!60!black,boxrule=0.6pt,arc=1.5pt,
+  fonttitle=\bfseries\sffamily,title={무슨 일이 일어났나}}
+\newtcolorbox{algobox}{breakable,colback=red!3,colframe=red!50!black,boxrule=0.6pt,arc=1.5pt,
+  fonttitle=\bfseries\sffamily,title={알고리즘이 더 낫게 만드는 점}}
+\newtcolorbox{qbox}{breakable,colback=gray!5,colframe=gray!55!black,boxrule=0.5pt,arc=1.5pt,
+  fonttitle=\bfseries\sffamily\small,title={확인 질문}}
+
+\tikzset{
+  wstep/.style={draw, rounded corners=3pt, minimum width=3.65cm, minimum height=1.6cm,
+    align=center, font=\small, line width=0.6pt},
+  sumz/.style={wstep, fill=blue!7, draw=blue!50!black},
+  test/.style={wstep, fill=orange!8, draw=orange!65!black},
+  rel/.style={wstep, fill=green!7, draw=green!45!black},
+  arr/.style={-{Stealth[length=2.6mm]}, line width=0.8pt, black!70},
+}
+% \nd{제목}{개념}{장}{알고리즘 표시(없으면 빈칸)}
+\newcommand{\nd}[4]{\textbf{#1}\\[-1pt]{\footnotesize #2}\\[-1pt]{\scriptsize\ttfamily\color{black!70}#3}\ifx&#4&\else\\[-1pt]{\scriptsize\sffamily\color{red!60!black}알고: #4}\fi}
+
+\begin{document}
+
+%================= 첫 페이지 =================
+\thispagestyle{empty}
+\begin{center}
+{\LARGE\textbf{numpy·pandas로 직접 만드는 통계}}\\[0.35em]
+{\large 통계 공식을 코드로 손수 구현하고, 알고리즘으로 결과를 더 낫게 만드는 연습}\\[0.25em]
+{\small 연습: \code{stats\_basics\_practice.ipynb} (빈칸) \quad 정답: \code{stats\_basics\_solution.ipynb}\\ 라이브러리: numpy, pandas, math}
+\end{center}
+
+\vspace{0.5em}
+\begin{center}
+\begin{tikzpicture}[node distance=0.5cm and 0.42cm]
+% 1행: 요약
+\node[sumz] (s0) {\nd{Step 0 \ 준비}{불러오기, 정규분포 함수}{0장}{}};
+\node[sumz, right=of s0] (s1) {\nd{Step 1 \ 평균·SD}{편차, RMS, 자유도}{1장}{벡터화}};
+\node[sumz, right=of s1] (s2) {\nd{Step 2 \ 중앙값·사분위}{IQR, 이탈값}{2장}{정렬, 선택}};
+\node[sumz, right=of s2] (s3) {\nd{Step 3 \ 표준화·정규근사}{68–95–99.7, 백분위}{3장}{이진 탐색}};
+% 2행: 추정과 검정 (오른쪽 -> 왼쪽)
+\node[test, below=1.2cm of s3] (s4) {\nd{Step 4 \ 비율·신뢰구간}{SE, 1.96}{4장}{}};
+\node[test, left=of s4] (s5) {\nd{Step 5 \ $z$-검정}{$H_0$, p-value}{5장}{}};
+\node[test, left=of s5] (s6) {\nd{Step 6 \ 순열 검정}{공식 없는 p-value}{6장}{무작위 섞기}};
+\node[test, left=of s6] (s7) {\nd{Step 7 \ 카이제곱}{교차표, 기대빈도}{7장}{}};
+% 3행: 관계와 회귀
+\node[rel, below=1.45cm of s7] (s8) {\nd{Step 8 \ 상관계수}{$z$ 곱의 평균}{8장}{}};
+\node[rel, right=of s8] (s9) {\nd{Step 9 \ 단순회귀}{$r\cdot\mathrm{SD}_y/\mathrm{SD}_x$, RMSE}{9장}{}};
+\node[rel, right=of s9] (s10) {\nd{Step 10 \ 다중회귀}{통제 후 성별 효과}{10장}{행렬 풀기}};
+\node[rel, right=of s10] (s11) {\nd{Step 11 \ 부트스트랩}{재표본 신뢰구간}{11장}{재표본, 벡터화}};
+% 결론
+\node[wstep, below=1.0cm of $(s9)!0.5!(s10)$, minimum width=8cm, fill=black!4, draw=black!60] (s12)
+  {\textbf{정리: 통계 결론 + 알고리즘의 역할}\\[-1pt]{\footnotesize ``자격을 통제해도 성별 격차가 남는가''에 답하기}\\[-1pt]{\scriptsize\ttfamily 12장}};
+\draw[arr] (s0) -- (s1); \draw[arr] (s1) -- (s2); \draw[arr] (s2) -- (s3);
+\draw[arr] (s3) -- (s4);
+\draw[arr] (s4) -- (s5); \draw[arr] (s5) -- (s6); \draw[arr] (s6) -- (s7);
+\draw[arr] (s7) -- (s8);
+\draw[arr] (s8) -- (s9); \draw[arr] (s9) -- (s10); \draw[arr] (s10) -- (s11);
+\draw[arr] (s11.south) |- (s12.east);
+% 같은 질문, 두 방법: z-검정 <-> 순열검정, 신뢰구간 <-> 부트스트랩
+\draw[arr, dashed, red!60!black, <->] (s6.south) to[bend right=28] node[below, font=\scriptsize, text=red!60!black, fill=white, inner sep=1pt] {같은 질문, 다른 방법} (s5.south);
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.2em}
+\begin{center}\small
+\begin{tabular}{@{}c l l@{}}
+\tikz\node[sumz, minimum width=0.5cm, minimum height=0.35cm]{}; & \textbf{요약} (Step 0–3) & 한 변수의 중심과 퍼짐, 분포 모양 \\
+\tikz\node[test, minimum width=0.5cm, minimum height=0.35cm]{}; & \textbf{추정과 검정} (Step 4–7) & 그룹 차이를 추정하고, 우연인지 검증 \\
+\tikz\node[rel, minimum width=0.5cm, minimum height=0.35cm]{}; & \textbf{관계와 회귀} (Step 8–11) & 변수 사이의 관계, 통제한 뒤의 효과 \\
+{\scriptsize\sffamily\color{red!60!black}알고:} & \textbf{알고리즘 포인트} & 정렬, 이진 탐색, 무작위 섞기, 재표본, 벡터화가 쓰이는 곳 \\
+\end{tabular}
+\end{center}
+
+\begin{goalbox}{이 워크북의 목표 (학부 1–2학년 수준)}
+\begin{enumerate}
+\item \textbf{통계를 탄탄하게}: 공식을 외우는 대신, 한 줄씩 코드로 \emph{직접} 계산해서 의미를 손으로 익힌다.
+\item \textbf{pandas·numpy로 구현}: 직접 만든 값이 pandas 내장 함수와 같은지 매번 확인한다.
+\item \textbf{알고리즘은 도움이 될 때만}: 정렬·이진 탐색·무작위 섞기·재표본이 계산을 빠르게 하거나, 공식의 가정 없이 답을 주는 지점까지.
+\end{enumerate}
+scipy, statsmodels, sklearn은 쓰지 않습니다. (확인용으로 다른 책에서만 등장)
+\end{goalbox}
+
+\clearpage
+\renewcommand{\contentsname}{목차 (Contents)}
+\tableofcontents
+
+%=================================================
+\section*{이 워크북 쓰는 법}
+\addcontentsline{toc}{section}{이 워크북 쓰는 법}
+\begin{enumerate}
+\item VS Code에서 왼쪽에 이 PDF, 오른쪽에 \code{stats\_basics\_practice.ipynb}를 엽니다. 정답 노트북은 닫아 둡니다.
+\item 각 장: \textbf{목표} 읽기 $\to$ 노트북에서 \code{\_\_\_} 채우고 실행 $\to$ \textbf{실행 결과}와 비교 $\to$ \textbf{무슨 일이 일어났나} 읽기 $\to$ \textbf{확인 질문}.
+\item 막히면 5분 고민 후 13장 끝 ``빈칸 정답''을 봅니다.
+\item 장이 끝날 때마다 숫자 하나를 바꿔서 결과가 어떻게 달라지는지 예상하고 확인합니다.
+\end{enumerate}
+\aside{※ 작은 주석: \Wc{n} = pandas-stats-walkthrough, \Hc{n} = hiring-statistics-book, \Ac{n} = algorithms-for-datathon, \Nc{Def x} = Statistics 1 강의노트. 더 깊이 보고 싶을 때만 따라가면 됩니다.}
+
+\begin{center}\small
+\begin{tabular}{@{}l p{11cm}@{}}
+\toprule
+상자 & 역할 \\
+\midrule
+\textcolor{blue!45!black}{\textbf{목표}} & 이 단계에서 할 일, 통계 개념 \\
+\textbf{코드} & 노트북과 같은 빈칸 코드 \\
+\textcolor{green!35!black}{\textbf{실행 결과}} & 실제로 돌린 출력 (정답 노트북과 동일) \\
+\textcolor{orange!60!black}{\textbf{무슨 일이 일어났나}} & 계산 과정을 단계별로 \\
+\textcolor{red!50!black}{\textbf{알고리즘이 더 낫게 만드는 점}} & 알고리즘이 쓰이는 장에만 \\
+\textbf{확인 질문} & 답은 13장 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\setcounter{section}{-1}
+%=================================================
+\section{Step 0. 준비: 데이터와 정규분포 함수}
+\begin{goalbox}{목표}
+데이터를 불러오고, 표준정규 누적분포 $\Phi(z)$를 scipy 없이 만든다.
+\end{goalbox}
+
+\begin{codebox}
+import math\\
+import numpy as np\\
+import pandas as pd\\[3pt]
+def Phi(z):\\
+\ \ \ \ """표준정규 누적분포 P(Z <= z). math.erf로 계산."""\\
+\ \ \ \ return 0.5 * (1 + math.erf(z / math.sqrt(2)))\\[3pt]
+df = pd.read\_csv("hiring\_practice.csv")\\
+d = df.dropna()\\
+print(df.shape, d.shape)
+\end{codebox}
+\begin{outbox}
+(600, 7) (582, 7)
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \code{df}: 원본 600행. \code{d}: \code{test\_score}가 빈 18행을 뺀 582행. 점수를 쓰는 계산은 \code{d}, 합격률만 쓰는 계산은 \code{df}를 씁니다.
+\item $\Phi(z)=P(Z\le z)$는 표준정규곡선 아래 $z$ 왼쪽의 면적입니다 \Wc{3.2}. 이 함수 하나로 p-value와 정규근사를 모두 계산합니다.
+\item 왜 erf인가: $\Phi(z)=\frac12\left(1+\operatorname{erf}\!\left(\frac{z}{\sqrt2}\right)\right)$는 정규분포 적분을 표준 함수로 쓴 것입니다. 파이썬 \code{math}에 들어 있습니다.
+\end{enumerate}
+\end{howbox}
+\aside{※ 확인: \code{Phi(1.96)} $=0.975$, \code{Phi(0)} $=0.5$, \code{Phi(-1)} $=1-$\code{Phi(1)} $=0.159$ (대칭).}
+
+\begin{qbox}
+1. \code{Phi(2) - Phi(-2)}는 무엇을 뜻하고, 값은 대략 얼마인가?
+\end{qbox}
+
+%=================================================
+\section{Step 1. 평균, 분산, 표준편차를 직접}
+\begin{goalbox}{목표}
+평균과 표준편차를 공식 그대로 계산하고, 분모 $n$과 $n-1$의 차이(자유도)를 확인한다. \Wc{2.2} \Nc{Def 2.3, 2.5}
+\end{goalbox}
+
+\[
+\bar x=\frac1n\sum x_i,\qquad \text{SD}=\sqrt{\frac1n\sum(x_i-\bar x)^2}\ (\text{편차의 RMS}),\qquad s=\sqrt{\frac1{n-1}\sum(x_i-\bar x)^2}.
+\]
+
+\begin{codebox}
+x = d["test\_score"].to\_numpy()\\
+n = len(x)\\
+mean = x.\_\_\_() / n\\
+dev = x - \_\_\_\\
+sd\_pop = math.sqrt((dev ** 2).sum() / \_\_\_) \hfill \# 분모 n\\
+sd\_sample = math.sqrt((dev ** 2).sum() / \_\_\_) \hfill \# 분모 n-1\\
+print(round(mean, 3), round(sd\_pop, 3), round(sd\_sample, 3))\\
+print(round(d["test\_score"].std(), 3), round(np.std(x), 3))
+\end{codebox}
+\begin{outbox}
+65.235 11.647 11.657\\
+11.657 11.647
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \code{to\_numpy()}: pandas 열을 numpy 배열로. 이제 순수한 숫자 582개입니다.
+\item \code{x - mean}: 582개 모두에서 평균을 \emph{한 번에} 뺍니다 (벡터 연산). 편차의 합은 0입니다.
+\item 분모 $n$: 11.647, 분모 $n-1$: 11.657. \textbf{pandas \code{.std()}는 $n-1$, numpy \code{np.std()}는 $n$}이 기본값이라 두 값이 다르게 나옵니다.
+\item 왜 $n-1$인가: 편차는 합이 0이라는 제약이 하나 있어서 자유롭게 움직이는 값이 $n-1$개 (\term{자유도}). $n$으로 나누면 분산을 평균적으로 작게 추정합니다 (bias) \Wc{2.2, 9.3}.
+\end{enumerate}
+\end{howbox}
+
+\begin{algobox}
+반복문 \code{for v in x: total += v}로도 같은 값이 나오지만, \code{x.sum()}과 \code{x - mean}은 C로 한 번에 처리되어 수십–수백 배 빠릅니다 (100만 개에서 약 230배) \Ac{1}. 같은 $\Theta(n)$이라도 상수가 다릅니다. \textbf{행 단위 반복 대신 배열 연산}이 pandas·numpy의 제1원칙입니다.
+\end{algobox}
+
+\begin{qbox}
+2. $n=5$일 때 $n$과 $n-1$로 나눈 분산의 비는? $n=582$일 때는?
+\end{qbox}
+
+%=================================================
+\section{Step 2. 중앙값과 사분위수: 정렬로}
+\begin{goalbox}{목표}
+정렬로 중앙값, 사분위수, IQR, 이탈값을 직접 구한다. \Wc{2.1, 2.3} \Nc{Def 2.1, 2.4, 2.9}
+\end{goalbox}
+
+정렬한 값 $x_{(1)}\le\dots\le x_{(n)}$ (\term{order statistics})에서, $p$-분위수는 $x_{(\lceil pn\rceil)}$로 정의할 수 있습니다 \Nc{Prop 5.6}.
+
+\begin{codebox}
+s = np.\_\_\_(x) \hfill \# 정렬\\
+median = (s[n // 2 - 1] + s[n // 2]) / 2 if n \% 2 == 0 else s[n // 2]\\
+q1 = s[math.ceil(\_\_\_ * n) - 1]\\
+q3 = s[math.ceil(\_\_\_ * n) - 1]\\
+iqr = q3 - q1\\
+lo, hi = q1 - \_\_\_ * iqr, q3 + \_\_\_ * iqr\\
+outliers = s[(s < lo) | (s > hi)]\\
+print(median, q1, q3, iqr, (lo, hi))\\
+print(outliers)\\
+print(np.partition(x, n // 2)[n // 2])
+\end{codebox}
+\begin{outbox}
+65.0 58.0 73.0 15.0 (35.5, 95.5)\\
+{}[ 29.\ \ 32.\ \ 33.\ \ 34.\ \ 35.\ \ 35.\ \ 35.\ \ 98. 100. 100.]\\
+65.0
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item $n=582$ (짝수)라서 중앙값은 291번째와 292번째 값의 평균. 파이썬 인덱스는 0부터라 \code{s[290]}, \code{s[291]}.
+\item $Q_1$: $\lceil0.25\times582\rceil=146$번째 값 = 58. $Q_3$: $\lceil0.75\times582\rceil=437$번째 값 = 73.
+\item 울타리 $[58-22.5,\ 73+22.5]=[35.5,\ 95.5]$ 밖의 10개가 이탈값. 이 값들이 \emph{틀린} 값인지는 따로 확인해야 하고, 100점은 가능한 점수이므로 지우지 않습니다 \Wc{2.3}.
+\item 평균 65.2 $\approx$ 중앙값 65 $\Rightarrow$ 거의 대칭인 분포.
+\end{enumerate}
+\end{howbox}
+
+\begin{algobox}
+\begin{itemize}
+\item \textbf{정렬} \code{np.sort}: introsort (quick sort + heap sort), $O(n\log n)$ \Ac{2}. 분위수를 여러 개 구할 때는 한 번 정렬해 두고 인덱스로 꺼내는 것이 효율적입니다.
+\item \textbf{선택} \code{np.partition(x, k)}: $k$번째 값만 제자리에 놓고 나머지는 대충 나눕니다. quickselect, 평균 $O(n)$ \Ac{3}. 중앙값 하나만 필요하면 정렬보다 빠릅니다 (100만 개에서 21 ms vs 7 ms).
+\end{itemize}
+\end{algobox}
+
+\begin{qbox}
+3. 데이터에 999점(입력 오류)이 하나 추가되면 평균과 중앙값 중 무엇이 크게 변하는가?
+\end{qbox}
+
+%=================================================
+\section{Step 3. 표준화, 정규근사, 백분위}
+\begin{goalbox}{목표}
+$z$-score를 만들고, 실제 비율과 정규분포 근사를 비교한다. 백분위는 이진 탐색으로 구한다. \Wc{3}
+\end{goalbox}
+
+\begin{codebox}
+z = (x - \_\_\_) / \_\_\_\\
+for k in [1, 2, 3]:\\
+\ \ \ \ actual = (np.abs(z) <= k).mean()\\
+\ \ \ \ normal = Phi(k) - Phi(\_\_\_)\\
+\ \ \ \ print(k, round(actual, 3), round(normal, 3))\\[3pt]
+z80 = (80 - mean) / sd\_sample\\
+print(round((x >= 80).mean(), 3), round(1 - Phi(\_\_\_), 3))\\[3pt]
+pos = np.\_\_\_(s, 85, side="right") \hfill \# 이진 탐색\\
+print(pos, round(pos / n, 3), round(Phi((85 - mean) / sd\_sample), 3))
+\end{codebox}
+\begin{outbox}
+1 0.682 0.683\\
+2 0.955 0.954\\
+3 0.998 0.997\\
+0.107 0.103\\
+557 0.957 0.955
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \code{np.abs(z) <= k}: 582개의 True/False. \code{.mean()}은 True의 비율 (True = 1).
+\item 실제 68.2 / 95.5 / 99.8\% vs 정규 68.3 / 95.4 / 99.7\%: 68–95–99.7 규칙이 거의 정확합니다. 점수는 정규분포로 근사해도 됩니다.
+\item 80점 이상: 실제 10.7\%, 정규근사 $1-\Phi(1.27)=10.3\%$.
+\item 85점의 백분위: 정렬된 \code{s}에서 85 이하인 값이 557개 $\Rightarrow$ 95.7 백분위. 정규근사 95.5.
+\end{enumerate}
+\end{howbox}
+
+\begin{algobox}
+\code{np.searchsorted(s, 85)}는 \textbf{이진 탐색}으로 ``85가 들어갈 자리''를 $O(\log n)$에 찾습니다. \code{(x <= 85).sum()}은 $O(n)$. 값 하나면 차이가 없지만, 지원자 수만 명의 백분위를 모두 구하면 $O(n\log n)$ vs $O(n^2)$입니다. \textbf{전제조건}: 배열이 정렬되어 있어야 합니다 (Step 2의 \code{s}) \Ac{5}.
+\end{algobox}
+
+\begin{qbox}
+4. \code{side="right"}를 \code{side="left"}로 바꾸면 결과가 왜 달라질 수 있나?
+\end{qbox}
+
+%=================================================
+\section{Step 4. 그룹 비율과 신뢰구간}
+\begin{goalbox}{목표}
+성별 합격률을 \textbf{추정}하고, 그 불확실성을 SE와 95\% 신뢰구간으로 나타낸다. \Wc{4} \Hc{5.5}
+\end{goalbox}
+\[
+\hat p=\frac{k}{n},\qquad \text{SE}=\sqrt{\frac{\hat p(1-\hat p)}n},\qquad \text{95\% CI}=\hat p\pm1.96\,\text{SE}.
+\]
+
+\begin{codebox}
+g = df.groupby(\_\_\_)["hired"].agg(["sum", "count"])\\
+g["p"] = g["sum"] / g[\_\_\_]\\
+g["se"] = np.sqrt(g["p"] * (1 - g["p"]) / g["count"])\\
+g["lo"] = g["p"] - \_\_\_ * g["se"]\\
+g["hi"] = g["p"] + \_\_\_ * g["se"]\\
+print(g.round(3))\\[3pt]
+diff = g.loc["M", "p"] - g.loc["F", "p"]\\
+se\_diff = math.sqrt(g.loc["M", "se"] ** 2 + g.loc["F", "se"] ** 2)\\
+print(round(diff, 3), round(se\_diff, 4), (round(diff - 1.96 * se\_diff, 3), round(diff + 1.96 * se\_diff, 3)))
+\end{codebox}
+\begin{outbox}
+\ \ \ \ \ \ \ \ sum\ \ count\ \ \ \ \ \ p\ \ \ \ \ se\ \ \ \ \ lo\ \ \ \ \ hi\\
+F\ \ \ \ \ \ \ 68\ \ \ \ 313\ \ 0.217\ \ 0.023\ \ 0.172\ \ 0.263\\
+M\ \ \ \ \ \ 125\ \ \ \ 287\ \ 0.436\ \ 0.029\ \ 0.378\ \ 0.493\\
+0.218 0.0374 (0.145, 0.292)
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \code{groupby("gender")}: 행을 F, M으로 나누고 각 그룹의 \code{hired}에서 합(합격자 수)과 개수(지원자 수)를 셉니다 \Hc{0.5}.
+\item 새 열 \code{p}, \code{se}, \code{lo}, \code{hi}는 열끼리의 벡터 연산이라 두 그룹이 한 번에 계산됩니다.
+\item 차이의 SE: 두 그룹이 독립이므로 분산을 더합니다. $\sqrt{0.023^2+0.029^2}=0.037$.
+\item \textbf{해석}: 남녀 합격률 차이는 21.8\%p로 추정되고, 95\% 신뢰구간 [14.5, 29.2]\%p는 0을 포함하지 않습니다.
+\end{enumerate}
+\end{howbox}
+\aside{※ 1.96은 \code{Phi(1.96)} $=0.975$, 즉 가운데 95\%의 경계 \Wc{3.2}. 이 구간의 근거는 CLT입니다: $\hat p$는 표본이 크면 근사적으로 정규분포 \Nc{§7.4}.}
+
+\begin{qbox}
+5. 여성 표본이 4배(1252명)였다면 여성의 SE는 대략 얼마가 되나?
+\end{qbox}
+
+%=================================================
+\section{Step 5. 두 비율의 $z$-검정을 직접}
+\begin{goalbox}{목표}
+$H_0: p_M=p_F$를 세우고, 검정통계량과 p-value를 직접 계산한다. \Wc{5.2, 11} \Hc{5.2}
+\end{goalbox}
+\[
+z=\frac{\hat p_M-\hat p_F}{\sqrt{\hat p(1-\hat p)\left(\frac1{n_M}+\frac1{n_F}\right)}},\quad \hat p=\frac{k_M+k_F}{n_M+n_F},\qquad p\text{-value}=2\big(1-\Phi(|z|)\big).
+\]
+
+\begin{codebox}
+def two\_prop\_z(k1, n1, k2, n2):\\
+\ \ \ \ p1, p2 = k1 / n1, k2 / n2\\
+\ \ \ \ p = (k1 + k2) / (\_\_\_) \hfill \# H0에서 합친 비율\\
+\ \ \ \ se0 = math.sqrt(p * (1 - p) * (1 / n1 + 1 / n2))\\
+\ \ \ \ z = (p1 - p2) / \_\_\_\\
+\ \ \ \ pval = 2 * (1 - Phi(abs(\_\_\_))) \hfill \# 양측\\
+\ \ \ \ return z, pval\\[3pt]
+z, pval = two\_prop\_z(125, 287, 68, 313)\\
+print(round(z, 3), pval)\\
+for dept, sub in df.groupby("department"):\\
+\ \ \ \ k = sub.groupby("gender")["hired"].sum()\\
+\ \ \ \ m = sub.groupby("gender")["hired"].count()\\
+\ \ \ \ zz, pp = two\_prop\_z(k["M"], m["M"], k["F"], m["F"])\\
+\ \ \ \ print(dept, round(zz, 3), round(pp, 4))
+\end{codebox}
+\begin{outbox}
+5.718 1.0780230708107297e-08\\
+Engineering 3.956 0.0001\\
+Marketing -1.575 0.1153
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \textbf{가설}: $H_0$ ``합격 확률은 성별과 무관'', $H_1$ ``다르다'' (양측).
+\item $H_0$가 참이면 두 그룹의 $p$가 같으므로, 합친 비율 $193/600=0.322$로 SE를 계산합니다 (Step 4의 CI용 SE와 다른 점).
+\item $z=0.218/0.0382=5.72$: 차이가 SE의 5.7배. $p=1.1\times10^{-8}$ $\Rightarrow$ $H_0$ 기각.
+\item 부서별: Engineering은 기각 ($p=0.0001$), Marketing은 기각 못 함 ($p=0.115$). \textbf{``차이가 없다''가 아니라 ``증거가 부족하다''}입니다. Marketing 남성은 61명뿐입니다 \Wc{11.4}.
+\item \code{for dept, sub in df.groupby(...)}: 그룹별 부분 표를 하나씩 꺼내 같은 함수를 적용합니다.
+\end{enumerate}
+\end{howbox}
+
+\begin{qbox}
+6. 이 검정은 어떤 가정 위에 서 있나? (힌트: $\Phi$를 쓴 이유)
+\end{qbox}
+
+%=================================================
+\section{Step 6. 순열 검정: 공식 없이 p-value}
+\begin{goalbox}{목표}
+$H_0$ ``성별과 합격은 무관''이 참이라면 \emph{성별 라벨을 섞어도} 차이가 비슷해야 한다. 이 생각을 컴퓨터로 직접 실험한다. \Wc{12 ⑬}
+\end{goalbox}
+
+\begin{codebox}
+rng = np.random.default\_rng(0)\\
+def perm\_test(sub, reps=10\_000):\\
+\ \ \ \ y = sub["hired"].to\_numpy()\\
+\ \ \ \ is\_m = (sub["gender"] == "M").to\_numpy()\\
+\ \ \ \ obs = y[is\_m].mean() - y[\textasciitilde is\_m].mean()\\
+\ \ \ \ count = 0\\
+\ \ \ \ for \_ in range(reps):\\
+\ \ \ \ \ \ \ \ shuffled = rng.\_\_\_(is\_m) \hfill \# 라벨 섞기\\
+\ \ \ \ \ \ \ \ diff = y[shuffled].mean() - y[\textasciitilde shuffled].mean()\\
+\ \ \ \ \ \ \ \ if abs(diff) >= abs(\_\_\_):\\
+\ \ \ \ \ \ \ \ \ \ \ \ count += 1\\
+\ \ \ \ return obs, count / \_\_\_\\[3pt]
+print(perm\_test(df))\\
+print(perm\_test(df[df["department"] == "Marketing"]))
+\end{codebox}
+\begin{outbox}
+(0.21828767352027695, 0.0)\\
+(-0.08473793581159086, 0.1261)
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \code{is\_m}: 남성이면 True인 배열. \code{\textasciitilde is\_m}은 반대 (여성).
+\item \code{rng.permutation(is\_m)}: True/False의 \emph{개수}는 그대로 두고 순서만 섞습니다. ``합격 여부는 그대로, 성별만 무작위로 다시 붙이기''.
+\item 이렇게 1만 번 섞어서 만든 차이들이 \textbf{$H_0$에서의 분포}입니다. 관측 차이보다 극단적인 비율이 p-value.
+\item 전체: 1만 번 중 0번 $\Rightarrow$ $p<0.0001$ ($z$-검정 $10^{-8}$과 같은 결론).
+\item Marketing: $p=0.126$ ($z$-검정 0.115와 거의 같음).
+\end{enumerate}
+\end{howbox}
+
+\begin{algobox}
+\begin{itemize}
+\item \textbf{가정이 없다}: $z$-검정은 ``표본이 커서 정규근사가 맞다''(CLT)를 가정합니다. 순열 검정은 데이터를 섞기만 하므로 그 가정이 필요 없어서, \emph{작은 그룹}이나 공식이 없는 통계량(중앙값 차이, 비율의 비 등)에도 그대로 씁니다.
+\item \textbf{알고리즘}: \code{permutation}은 Fisher–Yates 셔플, $O(n)$. 총 비용 $O(\text{reps}\times n)$ = $10^4\times600$.
+\item \textbf{확인용으로 최고}: 두 방법이 같은 답을 주면 결론을 더 믿을 수 있습니다. 첫 페이지 다이어그램의 ``같은 질문, 다른 방법''.
+\end{itemize}
+\end{algobox}
+
+\begin{qbox}
+7. \code{reps=10\_000}에서 \code{count}가 0이면 p-value를 ``0''이라고 보고해도 되는가?
+\end{qbox}
+
+%=================================================
+\section{Step 7. 교차표와 카이제곱을 직접}
+\begin{goalbox}{목표}
+``성별과 합격은 독립인가''를 교차표의 관측빈도와 기대빈도로 검정한다. \Wc{5.3, 12 ⑧} \Hc{5.3}
+\end{goalbox}
+\[
+E_{ij}=\frac{(\text{행 합}_i)(\text{열 합}_j)}{n},\qquad \chi^2=\sum_{i,j}\frac{(O_{ij}-E_{ij})^2}{E_{ij}}.
+\]
+
+\begin{codebox}
+O = pd.crosstab(df["gender"], df["hired"]).to\_numpy()\\
+row = O.sum(axis=\_\_\_)\\
+col = O.sum(axis=\_\_\_)\\
+E = np.\_\_\_(row, col) / O.sum()\\
+chi2 = ((O - E) ** 2 / \_\_\_).sum()\\
+pval = 2 * (1 - Phi(math.sqrt(chi2)))\\
+print(O); print(E.round(1)); print(round(chi2, 2), pval)
+\end{codebox}
+\begin{outbox}
+[[245\ \ 68]\\
+\ [162 125]]\\
+{}[[212.3 100.7]\\
+\ [194.7\ \ 92.3]]\\
+32.7 1.0780230708107297e-08
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \code{axis=1}: 가로로 합 (행 합 = 성별별 인원 313, 287). \code{axis=0}: 세로로 합 (열 합 = 불합격 407, 합격 193).
+\item \code{np.outer(row, col)}: 행 합 $\times$ 열 합을 모든 칸에 대해 만든 $2\times2$ 행렬. $/600$을 하면 ``독립이라면 나왔을 인원''.
+\item 여성 합격 칸: 관측 68, 기대 100.7. 독립이라면 약 101명이 붙었어야 하는데 68명.
+\item $\chi^2=32.7$. $2\times2$ 표에서는 $\chi^2=z^2$ ($5.718^2=32.7$)이므로 p-value도 Step 5와 정확히 같습니다.
+\end{enumerate}
+\end{howbox}
+\aside{※ $2\times2$보다 큰 표(예: 학위 3종 $\times$ 합격)는 자유도가 2 이상이라 이 $\Phi$ 트릭을 쓸 수 없습니다. 그때는 순열 검정(Step 6)으로 p-value를 구할 수 있습니다: 라벨을 섞을 때마다 $\chi^2$를 다시 계산.}
+
+\begin{qbox}
+8. 기대빈도 행렬 \code{E}의 행 합과 열 합은 \code{O}의 것과 같은가? 왜?
+\end{qbox}
+
+%=================================================
+\section{Step 8. 상관계수를 직접}
+\begin{goalbox}{목표}
+$r$ = ``두 변수의 $z$-score를 곱해서 평균낸 것''을 코드로 확인한다. \Wc{6.2}
+\end{goalbox}
+
+\begin{codebox}
+def corr(a, b):\\
+\ \ \ \ za = (a - a.mean()) / a.std() \hfill \# numpy std = 분모 n\\
+\ \ \ \ zb = (b - b.mean()) / b.std()\\
+\ \ \ \ return (za * \_\_\_).\_\_\_()\\[3pt]
+xs = d["test\_score"].to\_numpy()\\
+ys = d["hired"].to\_numpy()\\
+ex = d["years\_experience"].to\_numpy()\\
+print(round(corr(xs, ys), 4), round(corr(ex, ys), 4), round(corr(xs, ex), 4))\\
+print(d[["test\_score", "years\_experience", "hired"]].corr().round(4))
+\end{codebox}
+\begin{outbox}
+0.2465 0.1971 0.0077\\
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ test\_score\ \ years\_experience\ \ \ hired\\
+test\_score\ \ \ \ \ \ \ \ \ \ \ \ 1.0000\ \ \ \ \ \ \ \ \ \ \ \ 0.0077\ \ 0.2465\\
+years\_experience\ \ \ \ \ \ 0.0077\ \ \ \ \ \ \ \ \ \ \ \ 1.0000\ \ 0.1971\\
+hired\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 0.2465\ \ \ \ \ \ \ \ \ \ \ \ 0.1971\ \ 1.0000
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item 점수가 평균보다 높고 \emph{동시에} 합격(평균보다 높음)이면 곱이 양수, 엇갈리면 음수. 평균이 양수 0.2465 $\Rightarrow$ 약한 양의 상관.
+\item 직접 계산한 값과 \code{df.corr()}가 소수 넷째 자리까지 같습니다.
+\item 점수–경력 $r=0.008$: 두 자격 변수는 거의 무관. 그래서 회귀에서 서로 효과를 빼앗지 않습니다 (Step 10).
+\end{enumerate}
+\end{howbox}
+\aside{※ 여기서는 분모 $n$인 numpy \code{std}를 써야 정확히 맞습니다. 분모 $n-1$을 쓰려면 곱의 합을 $n-1$로 나눠야 합니다. 둘을 섞으면 $r$이 미세하게 틀립니다.}
+
+\begin{qbox}
+9. 점수를 10으로 나눠도 (\code{xs / 10}) $r$이 그대로인 이유는?
+\end{qbox}
+
+%=================================================
+\section{Step 9. 단순회귀: 공식 두 가지로}
+\begin{goalbox}{목표}
+회귀 기울기를 (1) $r\cdot\text{SD}_y/\text{SD}_x$와 (2) 정규방정식으로 각각 구해서 같은지 확인하고, RMSE 공식을 검증한다. \Wc{7.2, 8.2} \Nc{Thm 11.4}
+\end{goalbox}
+
+\begin{codebox}
+r = corr(xs, ys)\\
+slope = r * ys.std() / \_\_\_ \hfill \# 방법 1\\
+intercept = ys.mean() - slope * \_\_\_\\[3pt]
+X = np.column\_stack([np.ones(len(xs)), xs]) \hfill \# 방법 2: (X\^{}T X) b = X\^{}T y\\
+b = np.linalg.solve(X.T @ X, X.T @ \_\_\_)\\[3pt]
+resid = ys - (intercept + slope * xs)\\
+rmse = math.sqrt((resid ** 2).mean())\\
+print(round(slope, 5), round(intercept, 4), b.round(5))\\
+print(round(rmse, 4), round(math.sqrt(1 - r ** 2) * ys.std(), 4))
+\end{codebox}
+\begin{outbox}
+0.00991 -0.3218 [-0.32181\ \ 0.00991]\\
+0.4538 0.4538
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item 방법 1: ``$x$가 1 SD 늘면 $y$는 $r$ SD 늘어난다''. $0.2465\times0.468/11.65=0.00991$. 점수 1점당 합격 확률 +1\%p.
+\item 방법 2: \code{np.column\_stack}으로 [1, 점수] 두 열짜리 $X$ (582$\times$2)를 만들고 $X^\top X\,b=X^\top y$를 풉니다. \code{@}는 행렬 곱. 같은 답 [절편, 기울기].
+\item 잔차의 RMS = 0.4538 = $\sqrt{1-r^2}\cdot\text{SD}_y$. 점수를 알아도 예측 오차는 $\sqrt{1-0.061}=0.97$배, 3\%만 줄어듭니다 \Wc{8.2}.
+\end{enumerate}
+\end{howbox}
+\aside{※ \code{np.linalg.inv}로 역행렬을 구해서 곱해도 되지만, \code{solve}가 더 빠르고 수치적으로 안정적입니다 (가우스 소거). 선형대수 수업의 내용 그대로입니다.}
+
+\begin{qbox}
+10. $r=0$이면 회귀선은 어떤 모양이고, RMSE는 무엇과 같은가?
+\end{qbox}
+
+%=================================================
+\section{Step 10. 다중회귀: 행렬로 직접}
+\begin{goalbox}{목표}
+학위·점수·경력·부서를 \textbf{통제한 뒤에도} 성별 효과가 남는지, 계수·SE·$t$를 행렬 공식으로 직접 계산한다. \Wc{13} \Hc{6}
+\end{goalbox}
+\[
+\hat\beta=(X^\top X)^{-1}X^\top y,\qquad \hat\sigma^2=\frac{\sum e_i^2}{n-k},\qquad \text{SE}(\hat\beta_j)=\sqrt{\hat\sigma^2\,[(X^\top X)^{-1}]_{jj}},\qquad t=\frac{\hat\beta_j}{\text{SE}}.
+\]
+
+\begin{codebox}
+cats = d[["gender", "department", "degree"]]\\
+Xdf = pd.get\_dummies(cats, drop\_first=\_\_\_).astype(float)\\
+Xdf["test\_score"] = d["test\_score"]\\
+Xdf["years\_experience"] = d["years\_experience"]\\
+Xdf.insert(0, "const", 1.0)\\
+X = Xdf.to\_numpy(); y = d["hired"].to\_numpy()\\[3pt]
+XtX = X.T @ X\\
+beta = np.linalg.solve(XtX, X.T @ \_\_\_)\\
+resid = y - X @ beta\\
+n, k = X.shape\\
+sigma2 = (resid ** 2).sum() / (\_\_\_) \hfill \# 자유도\\
+se = np.sqrt(np.diag(sigma2 * np.linalg.inv(XtX)))\\
+t = beta / \_\_\_\\
+out = pd.DataFrame(\{"coef": beta, "se": se, "t": t,\\
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "p": [2 * (1 - Phi(abs(v))) for v in t]\}, index=Xdf.columns)\\
+print(out.round(4))
+\end{codebox}
+\begin{outbox}
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ coef\ \ \ \ \ \ se\ \ \ \ \ \ \ t\ \ \ \ \ \ \ p\\
+const\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ -0.4528\ \ 0.1133 -3.9982\ \ 0.0001\\
+gender\_M\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 0.0880\ \ 0.0396\ \ 2.2199\ \ 0.0264\\
+department\_Marketing -0.2214\ \ 0.0404 -5.4867\ \ 0.0000\\
+degree\_Master\ \ \ \ \ \ \ \ \ \ 0.0837\ \ 0.0375\ \ 2.2329\ \ 0.0256\\
+degree\_PhD\ \ \ \ \ \ \ \ \ \ \ \ \ 0.1200\ \ 0.0611\ \ 1.9641\ \ 0.0495\\
+test\_score\ \ \ \ \ \ \ \ \ \ \ \ \ 0.0098\ \ 0.0015\ \ 6.5207\ \ 0.0000\\
+years\_experience\ \ \ \ \ \ \ 0.0339\ \ 0.0090\ \ 3.7537\ \ 0.0002
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \code{pd.get\_dummies(..., drop\_first=True)}: 범주를 0/1 열로. 기준 범주(F, Engineering, Bachelor)는 열이 없습니다 \Hc{0.8}.
+\item \code{insert(0, "const", 1.0)}: 맨 앞에 절편용 1의 열. $X$는 582$\times$7.
+\item 자유도 $n-k=582-7=575$: 계수 7개를 데이터로 추정했기 때문 (단순회귀의 $n-2$와 같은 원리) \Nc{Prop 11.13}.
+\item \textbf{결론}: 다른 모든 변수를 같게 맞춰도 남성은 합격 확률이 8.8\%p 높고 ($t=2.22$, $p=0.026$), 단순 비교의 21.8\%p보다 크게 줄었습니다. 줄어든 부분은 주로 부서 (Marketing $-22$\%p) 때문입니다.
+\end{enumerate}
+\end{howbox}
+\aside{※ 응용 책 m2의 robust SE는 0.0386이고, 여기서는 고전적인 SE 0.0396입니다. 0/1 결과에서는 robust SE가 원칙이지만 \Hc{6.5}, 결론은 같습니다. p-value는 $n$이 커서 $t(575)\approx N(0,1)$로 $\Phi$를 썼습니다.}
+
+\begin{qbox}
+11. \code{drop\_first=False}로 하면 어떤 문제가 생기나? (힌트: 상수항 열과의 관계)
+\end{qbox}
+
+%=================================================
+\section{Step 11. 부트스트랩: 재표본으로 신뢰구간}
+\begin{goalbox}{목표}
+공식 없이, \textbf{데이터를 다시 뽑는 실험}으로 Step 4의 신뢰구간을 재현한다. \Wc{9.2}
+\end{goalbox}
+
+\begin{codebox}
+rng = np.random.default\_rng(0)\\
+y\_all = df["hired"].to\_numpy()\\
+m\_all = (df["gender"] == "M").to\_numpy()\\
+B, N = 5000, len(df)\\[3pt]
+idx = rng.integers(0, \_\_\_, size=(B, N)) \hfill \# 복원추출 인덱스\\
+yy, mm = y\_all[idx], m\_all[idx]\\
+gaps = ((yy * mm).sum(axis=1) / mm.sum(axis=1)\\
+\ \ \ \ \ \ \ \ - (yy * \textasciitilde mm).sum(axis=1) / (\textasciitilde mm).sum(axis=1))\\
+print(round(gaps.std(), 4), np.percentile(gaps, [\_\_\_, \_\_\_]).round(3))
+\end{codebox}
+\begin{outbox}
+0.0376 [0.145 0.291]
+\end{outbox}
+
+\begin{howbox}
+\begin{enumerate}
+\item \code{rng.integers(0, N, size=(B, N))}: 0–599 중에서 600개를 \emph{복원추출}로 뽑는 것을 5000번. 결과는 5000$\times$600 정수 행렬. 한 행 = 가상의 ``또 다른 600명 표본''.
+\item \code{y\_all[idx]}: 그 인덱스로 합격 여부를 꺼낸 5000$\times$600 행렬. \code{mm}도 같은 방식으로 성별.
+\item \code{(yy * mm).sum(axis=1) / mm.sum(axis=1)}: 행마다 ``남성 중 합격 비율''. 여성도 같은 방식. 그 차이가 표본마다의 격차.
+\item 5000개 격차의 SD 0.0376 $\approx$ 공식 SE 0.0374, 가운데 95\% [0.145, 0.291] $\approx$ 공식 CI [0.145, 0.292].
+\end{enumerate}
+\end{howbox}
+
+\begin{algobox}
+\begin{itemize}
+\item \textbf{재표본 = 표본분포를 직접 만드는 알고리즘}: 공식(CLT)이 없는 통계량에도 그대로 씁니다. 예: 중앙값 차이, disparate impact ratio $p_F/p_M$, 회귀 계수.
+\item \textbf{벡터화}: \code{for}문 5000번 대신 5000$\times$600 행렬 한 번으로 처리. Step 6의 순열 검정도 같은 방식으로 바꿀 수 있습니다 \Ac{1, 10}.
+\item 비용 $O(B\cdot N)$: $B$를 4배로 하면 시간 4배, 정밀도는 2배 ($\sqrt B$ 법칙).
+\end{itemize}
+\end{algobox}
+
+\begin{qbox}
+12. 순열 검정(Step 6)과 부트스트랩(Step 11)은 둘 다 ``섞는다''. 무엇이 다른가?
+\end{qbox}
+
+%=================================================
+\section{정리: 통계 결론과 알고리즘의 역할}
+
+\subsection{통계 결론}
+\begin{center}\small
+\begin{tabular}{@{}l l l@{}}
+\toprule
+질문 & 결과 & 단계 \\
+\midrule
+점수 분포는? & 평균 65.2, SD 11.7, 거의 정규 (68–95–99.7 일치) & 1–3 \\
+합격률 차이는? & 남 43.6\% vs 여 21.7\%, 차이 21.8\%p, CI [14.5, 29.2] & 4 \\
+우연인가? & $z=5.72$, $p\approx10^{-8}$; 순열 $p<10^{-4}$; $\chi^2=32.7$ & 5–7 \\
+부서별로는? & Engineering 유의 ($p=0.0001$), Marketing 증거 부족 ($p\approx0.12$) & 5–6 \\
+자격 변수와의 관계 & 점수 $r=0.25$, 경력 $r=0.20$, 서로는 무관 & 8–9 \\
+통제 후 성별 효과 & +8.8\%p, $t=2.22$, $p=0.026$ & 10 \\
+결과는 안정적인가 & 부트스트랩 CI가 공식 CI와 일치 & 11 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{한 문장}: ``남성의 합격률이 21.8\%p 높고, 시험점수·경력·학위·부서를 통제해도 약 9\%p의 격차가 남는다. 이 결론은 정규근사 검정, 순열 검정, 부트스트랩에서 모두 같다.'' (부서별 차이와 인과의 한계는 \Hc{6.9, 9.2})
+
+\subsection{알고리즘이 한 일}
+\begin{center}\small
+\begin{tabular}{@{}l l l@{}}
+\toprule
+알고리즘 & 어디서 & 더 나아진 점 \\
+\midrule
+벡터화 & Step 1, 3, 11 & 반복문보다 수백 배 빠름 \\
+정렬 & Step 2 & 중앙값, 사분위수, 이탈값을 한 번에 \\
+선택 (quickselect) & Step 2 & 중앙값 하나는 정렬 없이 $O(n)$ \\
+이진 탐색 & Step 3 & 백분위를 $O(\log n)$에 \\
+무작위 섞기 & Step 6 & 정규근사 가정 없는 p-value \\
+행렬 풀기 (가우스 소거) & Step 9, 10 & 역행렬보다 빠르고 안정적 \\
+재표본 & Step 11 & 공식 없는 신뢰구간 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{바꿔 보며 연습}
+\begin{center}\small
+\begin{tabular}{@{}l l@{}}
+\toprule
+바꿀 것 & 먼저 예상해 볼 것 \\
+\midrule
+Step 2에서 \code{x}에 999 추가 & 평균, SD, 중앙값, IQR 중 무엇이 크게 변하나 \\
+Step 4를 \code{groupby("department")}로 & 부서 간 차이의 CI는? \\
+Step 5를 학위별(Master vs Bachelor)로 & 학위 효과는 유의한가 \\
+Step 6의 \code{reps}를 1000, 100000으로 & p-value가 얼마나 흔들리나 \\
+Step 10에서 \code{department} 열 제거 & 성별 계수가 커지나 (omitted variable bias \Hc{6.8}) \\
+Step 11에서 Marketing만으로 & 격차의 CI가 0을 포함하나 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%=================================================
+\section{확인 질문 답과 빈칸 정답}
+\subsection{확인 질문}
+\textbf{1.} 표준정규에서 $-2$와 2 사이 면적 = 평균 $\pm2$ SD 안에 들어갈 확률, 약 0.954.
+
+\textbf{2.} $n/(n-1)$: $n=5$이면 1.25 (25\% 차이), $n=582$이면 1.0017 (무시할 만함).
+
+\textbf{3.} 평균. 중앙값은 순서만 보므로 거의 그대로이고, 평균은 $(999-65)/583\approx1.6$점 오릅니다. SD는 크게 커집니다.
+
+\textbf{4.} \code{"right"}는 85와 같은 값들의 \emph{오른쪽} 위치 (85 이하인 개수), \code{"left"}는 왼쪽 위치 (85 미만인 개수). 85점인 사람이 있으면 그 수만큼 다릅니다.
+
+\textbf{5.} SE $\propto1/\sqrt n$이므로 절반: 약 0.012.
+
+\textbf{6.} 독립인 관측, 그리고 표본이 커서 $\hat p$의 분포가 정규분포로 근사된다는 가정 (CLT). 그래서 $\Phi$로 p-value를 계산할 수 있습니다.
+
+\textbf{7.} 아니요. ``1만 번 중 한 번도 없었다''이므로 $p<1/10000$으로 보고합니다. 진짜 확률이 0이라는 뜻이 아닙니다.
+
+\textbf{8.} 같습니다. $\sum_jE_{ij}=\text{행합}_i\cdot\frac{\sum_j\text{열합}_j}{n}=\text{행합}_i$. 기대빈도는 합계를 유지한 채 ``독립''만 가정한 표입니다.
+
+\textbf{9.} $z$-score는 단위와 무관합니다: $x/10$의 평균과 SD도 $1/10$이 되어 $z$가 그대로. $r$은 $z$끼리의 곱이므로 그대로입니다.
+
+\textbf{10.} 기울기 0, 높이 $\bar y$인 수평선. RMSE $=\sqrt{1-0}\cdot\text{SD}_y=\text{SD}_y$: $x$가 예측에 아무 도움이 안 됩니다.
+
+\textbf{11.} 각 범주의 열을 모두 넣으면 (예: \code{gender\_F + gender\_M} $=1$) 상수항 열과 정확히 같아져서 열들이 일차종속이 됩니다. $X^\top X$의 역행렬이 없어 \code{solve}가 실패합니다 (dummy variable trap) \Hc{6.4}.
+
+\textbf{12.} 순열 검정은 $H_0$ (차이 없음)을 \emph{가정하고} 라벨을 섞어 ``우연이라면 얼마나 나오나''를 봅니다 $\to$ p-value. 부트스트랩은 가정 없이 행 전체를 복원추출해 ``추정값이 얼마나 흔들리나''를 봅니다 $\to$ 신뢰구간.
+
+\subsection{빈칸 정답}
+\begin{center}\small
+\begin{tabular}{@{}l l@{}}
+\toprule
+Step & 빈칸 \\
+\midrule
+1 & \code{sum}, \code{mean}, \code{n}, \code{n - 1} \\
+2 & \code{sort}, \code{0.25}, \code{0.75}, \code{1.5}, \code{1.5} \\
+3 & \code{mean}, \code{sd\_sample}, \code{-k}, \code{z80}, \code{searchsorted} \\
+4 & \code{"gender"}, \code{"count"}, \code{1.96}, \code{1.96} \\
+5 & \code{n1 + n2}, \code{se0}, \code{z} \\
+6 & \code{permutation}, \code{obs}, \code{reps} \\
+7 & \code{1}, \code{0}, \code{outer}, \code{E} \\
+8 & \code{zb}, \code{mean} \\
+9 & \code{xs.std()}, \code{xs.mean()}, \code{ys} \\
+10 & \code{True}, \code{y}, \code{n - k}, \code{se} \\
+11 & \code{N}, \code{2.5}, \code{97.5} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\aside{※ 전체 정답 코드와 실행 결과는 \code{stats\_basics\_solution.ipynb}에 있습니다.}
+
+\end{document}
